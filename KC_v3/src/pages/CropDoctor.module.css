@@ -1,0 +1,48 @@
+.page { padding:28px 32px; max-width:1000px; }
+.header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:28px; flex-wrap:wrap; gap:12px; }
+.title { font-family:var(--font-display); font-size:26px; color:var(--forest); }
+.sub { font-size:13px; color:var(--ink-muted); margin-top:3px; }
+.headerBadges { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.layout { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+.dropzone { min-height:220px; display:flex; align-items:center; justify-content:center; cursor:pointer; border:2px dashed var(--green-light); transition:all .2s; overflow:hidden; }
+.dropzone:hover { border-color:var(--green-bright); background:var(--green-pale); }
+.hasPreview { border-style:solid; padding:0; }
+.preview { width:100%; height:220px; object-fit:cover; }
+.dropContent { text-align:center; padding:32px; }
+.dropIcon { font-size:40px; margin-bottom:10px; }
+.dropTitle { font-size:15px; font-weight:600; color:var(--forest); }
+.dropSub { font-size:12px; color:var(--ink-muted); margin-top:4px; }
+.orRow { text-align:center; color:var(--ink-muted); font-size:12px; margin:14px 0; position:relative; }
+.orRow::before,.orRow::after { content:''; position:absolute; top:50%; width:35%; height:1px; background:var(--border); }
+.orRow::before { left:0; } .orRow::after { right:0; }
+.voiceBtn { width:100%; padding:13px; border-radius:var(--radius-sm); background:white; border:2px solid var(--green-light); color:var(--forest); font-size:14px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:8px; transition:all .2s; }
+.voiceBtn:hover { background:var(--green-pale); border-color:var(--green-bright); }
+.voiceActive { border-color:#ef4444; color:#ef4444; animation:pulse-dot 1s infinite; }
+.voiceIcon { font-size:18px; }
+.hindiText { margin-top:10px; background:#f0fdf4; border:1px solid var(--green-light); border-radius:var(--radius-xs); padding:10px 12px; font-size:13px; color:var(--forest); }
+.tip { display:flex; gap:8px; align-items:flex-start; margin-top:14px; background:var(--amber-pale); border-radius:var(--radius-xs); padding:10px 12px; font-size:12px; color:#78350f; }
+.emptyState { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; min-height:320px; text-align:center; padding:32px; }
+.emptyIcon { font-size:52px; margin-bottom:14px; }
+.emptyTitle { font-size:17px; font-weight:700; color:var(--forest); }
+.emptySub { font-size:13px; color:var(--ink-muted); margin-top:6px; max-width:280px; line-height:1.6; }
+.loading { display:flex; flex-direction:column; align-items:center; padding:40px 20px; gap:16px; }
+.loadingSpinner { width:44px; height:44px; border:3px solid var(--green-pale); border-top-color:var(--green-bright); border-radius:50%; animation:spin 0.8s linear infinite; }
+.loadingText { font-size:14px; font-weight:600; color:var(--forest); }
+.loadingSteps { display:flex; flex-direction:column; gap:6px; align-self:stretch; }
+.loadingStep { font-size:12px; color:var(--green-bright); animation:fadeUp .4s ease both; }
+.result { display:flex; flex-direction:column; gap:12px; }
+.diseaseCard { background:white; border-left:4px solid; border-radius:var(--radius-sm); padding:14px 16px; box-shadow:var(--shadow-sm); }
+.diseaseName { font-size:17px; font-weight:700; color:var(--ink); }
+.diseaseConf { font-size:12px; color:var(--ink-muted); margin-top:3px; }
+.severityCard { padding:14px 16px; }
+.severityLabel { font-size:12px; font-weight:600; color:var(--ink-mid); margin-bottom:10px; }
+.severityRow { display:flex; align-items:center; gap:5px; }
+.severityBlock { height:12px; flex:1; border-radius:3px; transition:background .3s; }
+.severityText { font-size:12px; font-weight:700; margin-left:8px; min-width:60px; }
+.infoCard { padding:14px 16px; }
+.infoTitle { font-size:13px; font-weight:700; color:var(--ink); margin-bottom:6px; }
+.infoBody { font-size:13px; color:var(--ink-mid); line-height:1.6; }
+.audioBtn { width:100%; justify-content:center; font-size:14px; }
+.retryBtn { background:none; border:1.5px solid var(--border); border-radius:99px; padding:8px 18px; font-size:13px; color:var(--ink-muted); margin-top:4px; }
+.retryBtn:hover { background:var(--canvas); }
+@media(max-width:700px){ .layout{grid-template-columns:1fr} .page{padding:16px} }

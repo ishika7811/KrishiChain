@@ -1,0 +1,39 @@
+.page{padding:28px 32px;max-width:960px}
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+.title{font-family:var(--font-display);font-size:26px;color:var(--forest)}
+.sub{font-size:13px;color:var(--ink-muted);margin-top:3px}
+.badges{display:flex;gap:8px;align-items:center}
+.layout{display:grid;grid-template-columns:320px 1fr;gap:24px}
+.formCard{padding:20px 22px;display:flex;flex-direction:column;gap:14px}
+.formTitle{font-size:15px;font-weight:700;color:var(--forest);margin-bottom:4px}
+.formGroup{display:flex;flex-direction:column;gap:6px}
+.label{font-size:12px;font-weight:600;color:var(--ink-mid)}
+.select{padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:white;color:var(--ink)}
+.select:focus{border-color:var(--green-bright);outline:none}
+.slider{width:100%;accent-color:var(--green-bright);cursor:pointer}
+.emptyState{display:flex;flex-direction:column;align-items:center;padding:50px 20px;gap:12px;text-align:center}
+.emptyTitle{font-size:17px;font-weight:700;color:var(--forest)}
+.emptySub{font-size:13px;color:var(--ink-muted);max-width:300px;line-height:1.6}
+.loadingState{display:flex;flex-direction:column;align-items:center;gap:14px;padding:50px;color:var(--ink-muted);font-size:14px}
+.spinner{width:36px;height:36px;border:3px solid var(--green-pale);border-top-color:var(--green-bright);border-radius:50%;animation:spin .8s linear infinite}
+.certWrap{display:flex;flex-direction:column;gap:14px}
+.certificate{background:white;border:1.5px solid var(--green-light);border-radius:var(--radius);padding:22px 24px;position:relative}
+.certHeader{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.certLogo{font-size:14px;font-weight:700;color:var(--forest)}
+.certBadge{font-size:18px;font-weight:700;padding:6px 16px;border-radius:99px}
+.certTitle{font-family:var(--font-display);font-size:20px;color:var(--forest);margin-bottom:4px}
+.certId{font-size:11px;color:var(--ink-muted);margin-bottom:16px;font-family:monospace}
+.certMetrics{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;background:var(--canvas);border-radius:var(--radius-sm);padding:14px}
+.certMetric{text-align:center}
+.cmValue{font-size:18px;font-weight:700;color:var(--forest)}
+.cmLabel{font-size:10px;color:var(--ink-muted);margin-top:2px}
+.certRow{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--ink-mid)}
+.certRow strong{color:var(--ink)}
+.certFooter{margin-top:14px;padding-top:12px;border-top:1px dashed var(--green-light)}
+.certVerified{font-size:11px;color:var(--green-bright);font-weight:600}
+.eligCard{padding:16px 18px}
+.eligTitle{font-size:13px;font-weight:700;color:var(--forest);margin-bottom:10px}
+.eligItem{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;color:var(--ink-mid);border-bottom:1px solid var(--border)}
+.eligItem:last-child{border:none}
+.eligCheck{color:var(--green-bright);font-weight:700}
+@media(max-width:700px){.layout{grid-template-columns:1fr}.page{padding:16px}}

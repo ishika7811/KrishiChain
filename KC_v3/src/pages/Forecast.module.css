@@ -1,0 +1,30 @@
+.page{padding:28px 32px;max-width:900px}
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+.title{font-family:var(--font-display);font-size:26px;color:var(--forest)}
+.sub{font-size:13px;color:var(--ink-muted);margin-top:3px}
+.headerBadges{display:flex;gap:8px;align-items:center}
+.controls{display:flex;gap:16px;align-items:flex-end;padding:18px 20px;margin-bottom:24px;flex-wrap:wrap}
+.controlGroup{display:flex;flex-direction:column;gap:6px;flex:1;min-width:140px}
+.label{font-size:12px;font-weight:600;color:var(--ink-mid)}
+.select{padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:white;color:var(--ink);appearance:none;cursor:pointer}
+.select:focus{border-color:var(--green-bright)}
+.fetchBtn{flex-shrink:0;align-self:flex-end;display:flex;align-items:center;gap:7px}
+.btnSpinner{width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite}
+.emptyState{display:flex;flex-direction:column;align-items:center;padding:60px 20px;gap:12px;text-align:center}
+.emptyTitle{font-size:17px;font-weight:700;color:var(--forest)}
+.emptySub{font-size:13px;color:var(--ink-muted);max-width:320px;line-height:1.6}
+.loadingState{display:flex;flex-direction:column;align-items:center;gap:14px;padding:60px;color:var(--ink-muted);font-size:14px}
+.spinner{width:36px;height:36px;border:3px solid var(--green-pale);border-top-color:var(--green-bright);border-radius:50%;animation:spin .8s linear infinite}
+.results{display:flex;flex-direction:column;gap:16px}
+.summaryRow{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.summaryCard{padding:18px 16px;text-align:center;border:none}
+.sumIcon{font-size:24px;margin-bottom:8px}
+.sumValue{font-size:22px;font-weight:700;color:var(--forest)}
+.sumLabel{font-size:12px;color:var(--ink-muted);margin-top:3px}
+.chartCard{padding:18px 20px}
+.chartTitle{font-size:13px;font-weight:700;color:var(--ink-mid);margin-bottom:14px}
+.recCard{display:flex;gap:14px;padding:16px 18px;background:#f0fdf4;border:none}
+.recIcon{font-size:24px;flex-shrink:0}
+.recTitle{font-size:14px;font-weight:700;color:var(--forest);margin-bottom:5px}
+.recText{font-size:13px;color:var(--ink-mid);line-height:1.6}
+@media(max-width:600px){.page{padding:16px}.summaryRow{grid-template-columns:1fr 1fr}.controls{flex-direction:column}}

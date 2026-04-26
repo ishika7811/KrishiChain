@@ -1,0 +1,28 @@
+.sidebar{width:238px;min-height:100vh;background:var(--forest);display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99;backdrop-filter:blur(2px)}
+.logo{display:flex;align-items:center;gap:12px;padding:20px 16px 16px;border-bottom:1px solid rgba(255,255,255,.07)}
+.logoMark{font-size:26px;width:40px;height:40px;background:rgba(255,255,255,.08);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logoName{font-family:var(--font-display);font-size:17px;color:white;font-weight:700;line-height:1.1}
+.logoTag{font-size:10px;color:rgba(255,255,255,.35);letter-spacing:.04em;margin-top:2px}
+.nav{flex:1;padding:12px 8px;display:flex;flex-direction:column;gap:1px;overflow-y:auto}
+.navSec{font-size:9px;font-weight:800;color:rgba(255,255,255,.28);letter-spacing:.12em;text-transform:uppercase;padding:8px 10px 3px}
+.navItem{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:9px;color:rgba(255,255,255,.5);font-size:13px;font-weight:500;transition:all .15s;cursor:pointer;text-decoration:none}
+.navItem:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.88)}
+.navItem.active{background:rgba(255,255,255,.11);color:white;font-weight:700}
+.ni{font-size:15px;width:19px;text-align:center;flex-shrink:0;opacity:.8}
+.nl{flex:1;font-size:12.5px}
+.navDiv{height:1px;background:rgba(255,255,255,.07);margin:7px 0}
+.si{background:rgba(245,200,66,.06);border:1px solid rgba(245,200,66,.14);margin-top:2px}
+.si:hover{background:rgba(245,200,66,.12)!important}
+.si.active{background:rgba(245,200,66,.18)!important;border-color:rgba(245,200,66,.35)}
+.nb{background:var(--gold);color:var(--forest);font-size:9px;font-weight:800;padding:2px 5px;border-radius:99px}
+.foot{padding:10px 8px 16px;border-top:1px solid rgba(255,255,255,.07);display:flex;flex-direction:column;gap:6px}
+.profLink{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;color:rgba(255,255,255,.55);font-size:12.5px;font-weight:600;text-decoration:none;transition:all .15s}
+.profLink:hover{background:rgba(255,255,255,.07);color:white}
+.langBtn{width:100%;display:flex;align-items:center;gap:7px;padding:8px 10px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.65);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;font-family:var(--font-body)}
+.langBtn:hover{background:rgba(255,255,255,.1);color:white}
+.langDrop{position:absolute;bottom:calc(100% + 6px);left:0;right:0;background:#1a3a2a;border:1px solid rgba(255,255,255,.15);border-radius:12px;overflow:hidden;z-index:200;box-shadow:0 -8px 24px rgba(0,0,0,.4);max-height:260px;overflow-y:auto}
+.langOpt{width:100%;display:flex;align-items:center;gap:8px;padding:9px 12px;background:none;border:none;color:rgba(255,255,255,.7);font-size:12.5px;font-family:var(--font-body);cursor:pointer;transition:background .1s;text-align:left}
+.langOpt:hover{background:rgba(255,255,255,.08);color:white}
+.langOptOn{background:rgba(106,231,168,.15);color:var(--green-glow);font-weight:700}
+@media(max-width:768px){.sidebar{position:fixed;left:-238px;top:0;z-index:100;transition:left .25s cubic-bezier(.22,1,.36,1);height:100vh}.sidebar.open{left:0}.overlay{display:block}}

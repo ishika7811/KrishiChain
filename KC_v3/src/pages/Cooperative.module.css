@@ -1,0 +1,48 @@
+.page{padding:28px 32px;max-width:900px}
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+.title{font-family:var(--font-display);font-size:26px;color:var(--forest)}
+.sub{font-size:13px;color:var(--ink-muted);margin-top:3px}
+.badges{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.form{padding:20px 22px;margin-bottom:24px}
+.formGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}
+.formGroup{display:flex;flex-direction:column;gap:6px}
+.label{font-size:12px;font-weight:600;color:var(--ink-mid)}
+.select,.input{padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:white;color:var(--ink)}
+.select:focus,.input:focus{border-color:var(--green-bright);outline:none}
+.loadingState{display:flex;flex-direction:column;align-items:center;gap:14px;padding:50px;color:var(--ink-muted);font-size:14px}
+.spinner{width:36px;height:36px;border:3px solid var(--green-pale);border-top-color:var(--green-bright);border-radius:50%;animation:spin .8s linear infinite}
+.results{display:flex;flex-direction:column;gap:16px}
+.premiumBanner{background:linear-gradient(135deg,#2d6a4f,#40916c);border-radius:var(--radius);padding:20px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.premiumLeft{}
+.premiumTitle{font-size:18px;font-weight:700;color:white}
+.premiumSub{font-size:13px;color:rgba(255,255,255,0.8);margin-top:4px}
+.premiumSub strong{color:white}
+.premiumPct{font-size:36px;font-weight:700;color:var(--amber);font-family:var(--font-display)}
+.statsRow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.statCard{padding:16px;text-align:center;border:none;background:var(--canvas)}
+.statIcon{font-size:22px;margin-bottom:6px}
+.statValue{font-size:16px;font-weight:700;color:var(--forest)}
+.statLabel{font-size:11px;color:var(--ink-muted);margin-top:2px}
+.farmersCard{padding:18px 20px}
+.farmersTitle{font-size:14px;font-weight:700;color:var(--forest);margin-bottom:14px}
+.farmersList{display:flex;flex-direction:column;gap:10px}
+.farmerRow{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:var(--radius-sm);background:var(--canvas)}
+.you{background:var(--green-pale);border:1px solid var(--green-light)}
+.farmerAvatar{width:36px;height:36px;border-radius:50%;background:var(--green-bright);color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.farmerInfo{flex:1;min-width:0}
+.farmerName{font-size:13px;font-weight:600;color:var(--ink)}
+.farmerDist{font-size:11px;color:var(--ink-muted)}
+.farmerQty{font-size:13px;font-weight:600;color:var(--forest)}
+.trustScore{font-size:12px;color:var(--ink-mid)}
+.buyerCard{display:flex;align-items:center;gap:14px;padding:16px 18px;background:#e8f4fd}
+.buyerIcon{font-size:28px;flex-shrink:0}
+.buyerName{font-size:14px;font-weight:700;color:#1a5276}
+.buyerSub{font-size:12px;color:#2e86c1;margin-top:3px}
+.joinedBanner{background:#d1fae5;border:1.5px solid #6ee7b7;border-radius:var(--radius-sm);padding:14px 18px;font-size:14px;font-weight:600;color:#065f46}
+.explainer{margin-top:8px}
+.explainerTitle{font-size:16px;font-weight:700;color:var(--forest);margin-bottom:16px}
+.explainerSteps{display:flex;flex-direction:column;gap:12px}
+.explainerStep{display:flex;align-items:flex-start;gap:14px}
+.stepNum{width:30px;height:30px;border-radius:50%;background:var(--green-mid);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
+.stepText{font-size:14px;color:var(--ink-mid);padding-top:5px;line-height:1.5}
+@media(max-width:600px){.page{padding:16px}}
