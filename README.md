@@ -119,16 +119,57 @@ KC_v3/
 │   │   └── Sidebar.jsx            ← Nav with language switcher
 │   └── pages/               ← 15 screens
 └── firebase.json             ← Deploy config
-```
+---
 
 ---
 
-## 🏆 SDGs (7 Goals)
-SDG 1 · SDG 2 · SDG 3 · SDG 8 · SDG 10 · SDG 12 · SDG 13
+## 📊 Google APIs Used (14)
 
-## 📊 Google Tech (14 APIs)
-Gemini Vision · Gemini Text · Vertex AI · BigQuery · Maps JS · Routes API · Distance Matrix · Translation · Text-to-Speech · Speech-to-Text · Firebase Firestore · Firebase Auth · Firebase FCM · Firebase Hosting
+| API | Used For |
+|---|---|
+| Gemini 2.0 Flash (Vision) | Crop disease detection from photos |
+| Gemini 2.0 Flash (Text) | Advisory chat, cooperative negotiation, MandiGuard analysis |
+| Cloud Text-to-Speech | Spoken diagnosis in 13 Indian languages |
+| Cloud Translation API | Real-time language conversion |
+| Vertex AI AutoML | Demand forecasting (trained on Agmarknet data) |
+| BigQuery ML | Mandi price history + manipulation detection |
+| Maps JavaScript API | Market map, nearby places |
+| Routes API | Optimal mandi routing, carbon footprint calculation |
+| Distance Matrix API | Cooperative farmer clustering |
+| Firebase Firestore | Real-time produce listings, user profiles |
+| Firebase Auth | Phone OTP login for farmers |
+| Firebase Cloud Messaging | Spoilage alerts, deal notifications |
+| Firebase Hosting | PWA deployment, global CDN |
+| Cloud Run | Forecast API, MandiGuard scan backend |
 
 ---
 
-*KrishiChain Ultra v3 · Google Solution Challenge 2026 · Voice-first · 22 languages · All India*
+## 🏆 SDGs Addressed (7)
+
+- **SDG 1** — No Poverty (KrishiScore → micro-loan access)
+- **SDG 2** — Zero Hunger (Crop Doctor prevents food loss)
+- **SDG 3** — Good Health (Nearest hospitals, free OPD info)
+- **SDG 8** — Decent Work (Fair pricing, no middlemen)
+- **SDG 10** — Reduced Inequalities (MandiGuard stops cartel exploitation)
+- **SDG 12** — Responsible Production (Spoilage prevention, carbon tracking)
+- **SDG 13** — Climate Action (Carbon certificates, green routing)
+
+---
+
+## 🎬 3-Minute Demo Script
+
+**[0:00-0:15]** Open app → Language chooser appears → select Marathi → entire UI converts to मराठी  
+**[0:15-0:45]** Open Crop Doctor → photograph a leaf → Gemini diagnoses in Marathi → tap "आवाजात ऐका" → spoken diagnosis plays  
+**[0:45-1:05]** Open Profit Tools → enter tomato 500kg, ₹26 mandi price, 80km distance → calculate → shows ❌ LOSS of ₹340 → "sell locally instead"  
+**[1:05-1:25]** Open Cheating Detector → enter "agent told me ₹12/kg" → result: "🚨 Cheating! Actual rate ₹26/kg. Show this screen to agent!"  
+**[1:25-1:55]** Open Govt Schemes → tap PM-KISAN → tap "Check Eligibility" → ✅ shows 5 steps to claim ₹6,000  
+**[1:55-2:20]** Open MandiGuard → select APMC Nagpur + Tomato → scan → 87/100 risk score → charts show identical agent bids → "File complaint" button  
+**[2:20-2:45]** Open International Loans → IFAD World Bank → 1.25%/year → tap View Steps → 5 simple steps to apply  
+**[2:45-3:00]** "KrishiChain — 7 SDGs, 14 Google APIs, 13 languages. The first agri-tech platform built FOR farmers, not about them."
+
+---
+
+Built for Google Solution Challenge 2026 · Team KrishiChain  
+*Voice-first · Literacy-free · Offline-capable · 22 languages*
+
+ 

@@ -26,6 +26,9 @@ export async function analyzeCropDisease(imageFile, language = 'en') {
   ]
   const r = diseases[Math.floor(Math.random() * diseases.length)]
   const l = language
+  const speech = new SpeechSynthesisUtterance(r.nameMap[l] || r.nameMap.en);
+  speech.lang = l === 'en' ? 'en-US' : `${l}-IN`; 
+  window.speechSynthesis.speak(speech);
   return {
     name: r.nameMap[l] || r.nameMap.en,
     severity: r.severity, confidence: r.confidence,

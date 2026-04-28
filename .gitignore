@@ -19,3 +19,4 @@ dist/
 # Firebase
 .firebase/
 firebase-debug.log*
+.vercel

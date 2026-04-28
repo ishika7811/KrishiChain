@@ -1,317 +1,374 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useLang } from '../lib/LangContext'
-import { speakText, startListening, processVoiceQuery, LANG_TTS_MAP } from '../lib/voice'
+import { speakText, listenOnce, answerQuery, LANG_BCP } from '../lib/voice'
 import styles from './VoiceAssistant.module.css'
 
-// ─── GREETINGS in all 22 Indian languages ──────────────────────────────────────
+// Greetings in all 22 Indian languages
 const GREETINGS = {
-  en:  { text: "Namaste! I am KrishiChain, your AI farming assistant. You can ask me about crop prices, disease, government schemes, or loans. How can I help you today?",           short: "How can I help you?" },
-  hi:  { text: "नमस्ते! मैं कृषिचेन हूँ, आपका AI किसान सहायक। आप मुझसे फसल के भाव, रोग, सरकारी योजनाएं, या ऋण के बारे में पूछ सकते हैं। आज मैं आपकी क्या मदद करूँ?",           short: "मैं आपकी क्या सेवा करूँ?" },
-  mr:  { text: "नमस्कार! मी कृषिचेन आहे, तुमचा AI शेतकरी सहाय्यक। तुम्ही मला पीक भाव, रोग, सरकारी योजना किंवा कर्जाबद्दल विचारू शकता। आज मी तुमची कशी मदत करू?",             short: "मी तुमची कशी सेवा करू?" },
-  pa:  { text: "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ! ਮੈਂ ਕ੍ਰਿਸ਼ੀਚੇਨ ਹਾਂ, ਤੁਹਾਡਾ AI ਕਿਸਾਨ ਸਹਾਇਕ। ਤੁਸੀਂ ਮੈਨੂੰ ਫਸਲਾਂ ਦੇ ਭਾਅ, ਬਿਮਾਰੀ, ਸਰਕਾਰੀ ਯੋਜਨਾਵਾਂ ਜਾਂ ਕਰਜ਼ੇ ਬਾਰੇ ਪੁੱਛ ਸਕਦੇ ਹੋ। ਅੱਜ ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਮਦਦ ਕਰਾਂ?", short: "ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਸੇਵਾ ਕਰਾਂ?" },
-  ml:  { text: "നമസ്കാരം! ഞാൻ കൃഷിചെയിൻ ആണ്, നിങ്ങളുടെ AI കർഷക സഹായി. വിള വില, രോഗം, സർക്കാർ പദ്ധതി, വായ്പ എന്നിവ ചോദിക്കാം. ഇന്ന് ഞാൻ എങ്ങനെ സഹായിക്കണം?",                  short: "ഞാൻ എങ്ങനെ സഹായിക്കണം?" },
-  ta:  { text: "வணக்கம்! நான் கிருஷிசேன், உங்கள் AI விவசாய உதவியாளர். பயிர் விலை, நோய், அரசு திட்டங்கள் அல்லது கடன் பற்றி கேளுங்கள். இன்று நான் எப்படி உதவலாம்?",              short: "நான் எப்படி உதவலாம்?" },
-  te:  { text: "నమస్కారం! నేను కృషిచెయిన్, మీ AI రైతు సహాయకుడు. పంట ధరలు, వ్యాధి, ప్రభుత్వ పథకాలు లేదా రుణాల గురించి అడగండి. ఈరోజు నేను ఏ విధంగా సహాయపడగలను?",              short: "నేను ఎలా సహాయపడగలను?" },
-  kn:  { text: "ನಮಸ್ಕಾರ! ನಾನು ಕೃಷಿಚೇನ್, ನಿಮ್ಮ AI ರೈತ ಸಹಾಯಕ. ಬೆಳೆ ಬೆಲೆ, ರೋಗ, ಸರ್ಕಾರಿ ಯೋಜನೆ ಅಥವಾ ಸಾಲದ ಬಗ್ಗೆ ಕೇಳಿ. ಇಂದು ನಾನು ಹೇಗೆ ಸಹಾಯ ಮಾಡಲಿ?",                            short: "ನಾನು ಹೇಗೆ ಸಹಾಯ ಮಾಡಲಿ?" },
-  gu:  { text: "નમસ્તે! હું કૃષિચેન છું, તમારો AI ખેડૂત સહાયક. પાક ભાવ, રોગ, સરકારી યોજના અથવા લોન વિશે પૂછો. આજે હું કેવી રીતે મદદ કરી શકું?",                                   short: "હું કેવી રીતે સેવા કરું?" },
-  bn:  { text: "নমস্কার! আমি কৃষিচেন, আপনার AI কৃষক সহকারী। ফসলের দাম, রোগ, সরকারি প্রকল্প বা ঋণ সম্পর্কে জিজ্ঞাসা করুন। আজ আমি কীভাবে সাহায্য করতে পারি?",                   short: "আমি কীভাবে সাহায্য করব?" },
-  or:  { text: "ନମସ୍କାର! ମୁଁ କୃଷିଚେନ, ଆପଣଙ୍କ AI କୃଷକ ସହାୟକ। ଫସଲ ମୂଲ୍ୟ, ରୋଗ, ସରକାରୀ ଯୋଜନା ବା ଋଣ ବିଷୟରେ ପ୍ରଶ୍ନ କରନ୍ତୁ। ଆଜି ମୁଁ କିପରି ସାହାଯ୍ୟ କରିବି?",                      short: "ମୁଁ କିପରି ସାହାଯ୍ୟ କରିବି?" },
-  as:  { text: "নমস্কাৰ! মই কৃষিচেইন, আপোনাৰ AI কৃষক সহায়ক। শস্যৰ মূল্য, ৰোগ, চৰকাৰী আঁচনি বা ঋণৰ বিষয়ে সোধক। আজি মই কেনেকৈ সহায় কৰিব পাৰো?",                               short: "মই কেনেকৈ সহায় কৰিব?" },
-  ur:  { text: "السلام علیکم! میں کرشی چین ہوں، آپ کا AI کسان مددگار۔ فصل کی قیمت، بیماری، سرکاری منصوبے یا قرض کے بارے میں پوچھیں۔ آج میں آپ کی کیا خدمت کر سکتا ہوں؟",       short: "میں آپ کی خدمت کیسے کروں؟" },
-  mai: { text: "प्रणाम! हम कृषिचेन छी, अहाँक AI किसान सहायक। फसल भाव, रोग, सरकारी योजना या ऋण के बारे मे पुछि सकैत छी।",                                                             short: "हम अहाँक की सेवा करी?" },
-  ne:  { text: "नमस्ते! म कृषिचेन हुँ, तपाईंको AI किसान सहायक। बाली मूल्य, रोग, सरकारी योजना वा ऋणको बारेमा सोध्नुस्।",                                                              short: "म कसरी सेवा गरूँ?" },
-  kok: { text: "नमस्कार! हांव कृषिचेन, तुमचो AI शेतकार सहाय्यक। पीक भाव, रोग, सरकारी योजना किंवा कर्जाविशीं विचारात येता.",                                                          short: "हांव तुमची कशी सेवा करूं?" },
-  doi: { text: "नमस्ते! मैं कृषिचेन आँ, तुहाडा AI किसान सहायक। फसल दे भाव, रोग, सरकारी योजनाएं दे बारे च पुच्छो।",                                                                   short: "मैं तुहाडी की सेवा करां?" },
-  mni: { text: "নমস্কার! মরি কৃষিচেন, নখোয়গী AI চহি থৌদাং। পাম্বৈ লৌ মী, অসুক, সরকারী থবক অমদি খুদোংচাবগী মতাংদা হায়বিয়ু।",                                                        short: "মরি কদায়দা থৌদাং পীব?" },
-  sat: { text: "जोहार! ञु कृषिचेन आकाना, आपनाक AI रिलो सहाय। पड़हा दाम, आसोय, सरकार कामी जाना रिन बाबते ते नेञ।",                                                                    short: "ञु लेका सहाय मेनाम?" },
-  ks:  { text: "آداب! مۄ کرِشی چَین آسان، تُہُند AI زمیندار مددگار۔ فصل قیمت، بیماری، سرکاری منصوبہ یا قرض بارَس پُچھو۔",                                                             short: "مۄ کَیفیَت خِدمَت کَرہ؟" },
-  sd:  { text: "نمستي! مان ڪرشي چين آهيان، توهان جو AI ڪسان مددگار۔ فصل جي قيمت، بيماري، سرڪاري اسڪيم يا قرض بابت پڇو۔",                                                              short: "مان ڪيئن خدمت ڪريان؟" },
-  sa:  { text: "नमस्ते! अहं कृषिचेन अस्मि, भवतः AI कृषक सहायकः। फसल मूल्य, रोग, सर्कारयोजना, ऋणविषये पृच्छन्तु।",                                                                   short: "अहं कथं सेवां करोमि?" },
+  en:  "Namaste! I am KrishiChain, your AI farming assistant. Ask me about crop prices, disease, government schemes or loans. How can I help you today?",
+  hi:  "नमस्ते! मैं कृषिचेन हूँ, आपका AI किसान सहायक। फसल भाव, रोग, सरकारी योजना या ऋण के बारे में पूछें।",
+  mr:  "नमस्कार! मी कृषिचेन आहे. पीक भाव, रोग, सरकारी योजना किंवा कर्जाबद्दल विचारा.",
+  pa:  "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ! ਮੈਂ ਕ੍ਰਿਸ਼ੀਚੇਨ ਹਾਂ। ਫਸਲ ਭਾਅ, ਰੋਗ, ਸਰਕਾਰੀ ਯੋਜਨਾ ਜਾਂ ਕਰਜ਼ੇ ਬਾਰੇ ਪੁੱਛੋ।",
+  ml:  "നമസ്കാരം! ഞാൻ കൃഷിചെയിൻ ആണ്. വിള വില, രോഗം, സർക്കാർ പദ്ധതി, വായ്പ — എന്തും ചോദിക്കൂ.",
+  ta:  "வணக்கம்! நான் கிருஷிசேன். பயிர் விலை, நோய், அரசு திட்டங்கள், கடன் — எதுவும் கேளுங்கள்.",
+  te:  "నమస్కారం! నేను కృషిచెయిన్. పంట ధరలు, వ్యాధి, పథకాలు, రుణాలు — ఏదైనా అడగండి.",
+  kn:  "ನಮಸ್ಕಾರ! ನಾನು ಕೃಷಿಚೇನ್. ಬೆಳೆ ಬೆಲೆ, ರೋಗ, ಯೋಜನೆ, ಸಾಲ — ಏನಾದರೂ ಕೇಳಿ.",
+  gu:  "નમસ્તે! હું કૃષિચેન. ભાવ, રોગ, સરકારી યોજના, લોન — કંઈ પૂછો.",
+  bn:  "নমস্কার! আমি কৃষিচেন। ফসলের দাম, রোগ, প্রকল্প, ঋণ — যা খুশি জিজ্ঞাসা করুন।",
+  or:  "ନମସ୍କାର! ମୁଁ କୃଷିଚେନ। ଫସଲ ମୂଲ୍ୟ, ରୋଗ, ଯୋଜନା, ଋଣ — ପ୍ରଶ୍ନ କରନ୍ତୁ।",
+  as:  "নমস্কাৰ! মই কৃষিচেইন। শস্য দাম, ৰোগ, আঁচনি, ঋণ — যি সোধিব সুধক।",
+  ur:  "السلام علیکم! میں کرشی چین ہوں۔ فصل قیمت، بیماری، سرکاری منصوبے، قرض — کچھ بھی پوچھیں۔",
+  mai: "प्रणाम! हम कृषिचेन छी। फसल भाव, रोग, योजना या ऋणक बारे पुछि सकैत छी।",
+  ne:  "नमस्ते! म कृषिचेन। बाली मूल्य, रोग, योजना, ऋण — जे चाहे सोध्नुस्।",
+  kok: "नमस्कार! हांव कृषिचेन. पीक भाव, रोग, योजना विशीं विचारात येता.",
+  doi: "नमस्ते! मैं कृषिचेन आँ. फसल भाव, रोग, योजना बारे पुच्छो.",
+  mni: "নমস্কার! মরি কৃষিচেন। পাম্বৈ মী, অসুক, পথকং মতাংদা হায়বিয়ু।",
+  sat: "जोहार! ञु कृषिचेन। पड़हा दाम, आसोय, सरकार कामी बाबते नेञ।",
+  ks:  "آداب! مۄ کرِشی چَین۔ فصل قیمت، بیماری، یوجنا پُچھو۔",
+  sd:  "نمستي! مان ڪرشي چين. فصل قيمت، بيماري، اسڪيم پڇو.",
+  sa:  "नमस्ते! अहं कृषिचेन। फसल मूल्य, रोग, योजना पृच्छन्तु।",
 }
 
-// Voice command → route navigation mapping
-const VOICE_ROUTES = {
-  en: { 'crop doctor': '/crop-doctor', 'disease': '/crop-doctor', 'forecast': '/forecast', 'price': '/forecast', 'cooperative': '/cooperative', 'loan': '/loans', 'scheme': '/schemes', 'government': '/schemes', 'nearby': '/nearby', 'carbon': '/carbon', 'profile': '/profile', 'mandi guard': '/mandiguard', 'cheating': '/tools', 'profit': '/tools', 'map': '/market' },
-  hi: { 'फसल डॉक्टर': '/crop-doctor', 'रोग': '/crop-doctor', 'पूर्वानुमान': '/forecast', 'भाव': '/forecast', 'योजना': '/schemes', 'ऋण': '/loans', 'नजदीक': '/nearby', 'प्रोफाइल': '/profile', 'मंडी': '/market', 'धोखा': '/tools', 'लाभ': '/tools', 'सहकारी': '/cooperative' },
-  mr: { 'पीक डॉक्टर': '/crop-doctor', 'रोग': '/crop-doctor', 'भाव': '/forecast', 'योजना': '/schemes', 'कर्ज': '/loans', 'जवळ': '/nearby', 'प्रोफाइल': '/profile', 'मंडी': '/market', 'फसवणूक': '/tools', 'नफा': '/tools' },
-  pa: { 'ਫਸਲ ਡਾਕਟਰ': '/crop-doctor', 'ਰੋਗ': '/crop-doctor', 'ਭਾਅ': '/forecast', 'ਯੋਜਨਾ': '/schemes', 'ਕਰਜ਼ਾ': '/loans', 'ਨੇੜੇ': '/nearby', 'ਧੋਖਾ': '/tools', 'ਮੁਨਾਫਾ': '/tools' },
-  ml: { 'വ്യാധി': '/crop-doctor', 'വില': '/forecast', 'പദ്ധതി': '/schemes', 'വായ്പ': '/loans', 'അടുത്ത': '/nearby', 'ലാഭം': '/tools' },
-  ta: { 'நோய்': '/crop-doctor', 'விலை': '/forecast', 'திட்டம்': '/schemes', 'கடன்': '/loans', 'அருகில்': '/nearby', 'லாபம்': '/tools' },
+// Navigation keyword map
+const NAV_MAP = {
+  '/crop-doctor': ['crop doctor','disease','rrog','rog','रोग','बीमारी','ਰੋਗ','రోగ','நோய்','ರೋಗ','രോഗ','রোগ'],
+  '/forecast':    ['forecast','price','bhav','daam','भाव','दाम','ਭਾਅ','ధర','விலை','ಬೆಲೆ','വില','ভাও'],
+  '/tools':       ['profit','cheat','fraud','dhokha','लाभ','धोखा','ਮੁਨਾਫਾ','ਧੋਖਾ','లాభ','மோசடி','ಲಾಭ','ലാഭ','नफा','फसवणूक'],
+  '/schemes':     ['scheme','yojana','government','योजना','ਯੋਜਨਾ','పథకం','திட்டம்','ಯೋಜನೆ','പദ്ധതി','শেখান'],
+  '/loans':       ['loan','karz','rin','ऋण','कर्ज','ਕਰਜ਼ਾ','రుణ','கடன்','ಸಾಲ','വായ്പ'],
+  '/nearby':      ['nearby','hospital','bank','nearest','नजदीक','ਨੇੜੇ','అడుత','அருகில்','ಹತ್ತಿರ','അടുത്ത'],
+  '/market':      ['mandi','market','map','मंडी','बाजार','ਮੰਡੀ','మండి','சந்தை','ಮಂಡಿ','മണ്ടി'],
+  '/cooperative': ['cooperative','group','bulk','सहकारी','ਸਹਿਕਾਰੀ','సహకారం','கூட்டுறவு'],
+  '/mandiguard':  ['mandiguard','cartel','manipulation','मंडी गार्ड'],
+  '/profile':     ['profile','प्रोफाइल','ਪ੍ਰੋਫਾਈਲ','ప్రొఫైల్'],
 }
 
 export default function VoiceAssistant() {
-  const { langCode, t } = useLang()
-  const navigate = useNavigate()
-  const location = useLocation()
+  const { langCode } = useLang()
+  const navigate     = useNavigate()
+  const location     = useLocation()
 
-  const [state, setState] = useState('idle') // idle | greeting | listening | thinking | speaking
+  const [phase,      setPhase]      = useState('idle')
   const [transcript, setTranscript] = useState('')
-  const [response, setResponse] = useState('')
-  const [isMinimized, setIsMinimized] = useState(false)
-  const [hasGreeted, setHasGreeted] = useState(false)
-  const [waveActive, setWaveActive] = useState(false)
-  const [error, setError] = useState('')
-  const [voiceSupported, setVoiceSupported] = useState(true)
-  const recognitionRef = useRef(null)
-  const greetingDoneRef = useRef(false)
+  const [reply,      setReply]      = useState('')
+  const [replyLang,  setReplyLang]  = useState(langCode)
+  const [minimized,  setMinimized]  = useState(false)
+  const [error,      setError]      = useState('')
+  const [waving,     setWaving]     = useState(false)
+  const [hasSupport, setHasSupport] = useState(true)
 
-  const greeting = GREETINGS[langCode] || GREETINGS.en
-  const ttsApiKey = import.meta.env.VITE_TTS_API_KEY || null
+  const recogRef   = useRef(null)
+  const didGreet   = useRef(false)
+  const mountedRef = useRef(true)
+  const langRef    = useRef(langCode)
 
-  // ── Auto-greet on page load ────────────────────────────────────────────────
+  useEffect(() => { langRef.current = langCode }, [langCode])
+
+  // Check browser support once
   useEffect(() => {
-    const supported = 'speechSynthesis' in window
-    setVoiceSupported(supported)
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+    const hasTTS = !!window.speechSynthesis
+    if (!SR || !hasTTS) setHasSupport(false)
+  }, [])
 
-    if (!supported) return
-    if (greetingDoneRef.current) return
-    greetingDoneRef.current = true
-
-    // Small delay to let page render first
-    const timer = setTimeout(async () => {
-      setState('greeting')
-      setResponse(greeting.text)
-      try {
-        await speakText(greeting.text, langCode, ttsApiKey)
-      } catch (e) { /* silent */ }
-      setState('listening')
-      setHasGreeted(true)
-      startAutoListen()
-    }, 1500)
-
-    return () => clearTimeout(timer)
-  }, []) // Only run once on mount
-
-  // ── Auto re-greet when language changes ───────────────────────────────────
+  // Auto-greet on first mount
   useEffect(() => {
-    if (!hasGreeted) return
-    greetingDoneRef.current = false
-    stopListening()
-    setTimeout(async () => {
-      setState('greeting')
-      const g = GREETINGS[langCode] || GREETINGS.en
-      setResponse(g.text)
-      try { await speakText(g.text, langCode, ttsApiKey) } catch(e){}
-      setState('listening')
-      startAutoListen()
-    }, 500)
+    if (!hasSupport) return
+    if (didGreet.current) return
+    didGreet.current = true
+    const t = setTimeout(() => { if (mountedRef.current) startGreet(langCode) }, 1800)
+    return () => clearTimeout(t)
+  }, [hasSupport])
+
+  // Re-greet when language changes (only after first greet)
+  const prevLang = useRef(langCode)
+  useEffect(() => {
+    if (prevLang.current === langCode) return
+    prevLang.current = langCode
+    if (!didGreet.current || !hasSupport) return
+    stopRecog()
+    if (window.speechSynthesis) window.speechSynthesis.cancel()
+    const t = setTimeout(() => { if (mountedRef.current) startGreet(langCode) }, 600)
+    return () => clearTimeout(t)
   }, [langCode])
 
-  function stopListening() {
-    if (recognitionRef.current) {
-      try { recognitionRef.current.stop() } catch(e){}
-      recognitionRef.current = null
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false
+      stopRecog()
+      if (window.speechSynthesis) window.speechSynthesis.cancel()
     }
-    setWaveActive(false)
+  }, [])
+
+  function stopRecog() {
+    if (recogRef.current) {
+      try { recogRef.current.stop() } catch {}
+      recogRef.current = null
+    }
+    setWaving(false)
   }
 
-  function startAutoListen() {
-    stopListening()
-    setWaveActive(true)
+  async function startGreet(lc) {
+    if (!mountedRef.current) return
+    const text = GREETINGS[lc] || GREETINGS.en
+    setPhase('greeting')
+    setReply(text)
+    setReplyLang(lc)
     setTranscript('')
     setError('')
+    await speakText(text, lc)
+    if (!mountedRef.current) return
+    beginListen(lc)
+  }
 
-    recognitionRef.current = startListening(
-      langCode,
+  function beginListen(lc) {
+    if (!mountedRef.current) return
+    stopRecog()
+    setPhase('listening')
+    setWaving(true)
+    setError('')
+
+    recogRef.current = listenOnce(
+      lc,
+      // onResult
       async (text, isFinal) => {
+        if (!mountedRef.current) return
         setTranscript(text)
-        if (isFinal && text.trim()) {
-          stopListening()
-          await handleQuery(text)
+        if (isFinal && text.trim().length > 1) {
+          stopRecog()
+          await processQuery(text, lc)
         }
       },
-      (err) => {
-        setError(err)
-        setWaveActive(false)
-        setState('idle')
-        // Auto retry after error (except permission denied)
-        if (!err.includes('permission') && !err.includes('denied')) {
-          setTimeout(() => { setState('listening'); startAutoListen() }, 3000)
+      // onError
+      (msg) => {
+        if (!mountedRef.current) return
+        stopRecog()
+        if (msg) setError(msg)
+        setPhase('idle')
+        // Auto-retry after 4s unless it was a permission error
+        if (msg && !msg.toLowerCase().includes('blocked') && !msg.toLowerCase().includes('denied')) {
+          setTimeout(() => {
+            if (mountedRef.current) beginListen(langRef.current)
+          }, 4000)
         }
       },
-      () => {
-        setWaveActive(false)
-        // Auto restart listening after 1s
-        setTimeout(() => {
-          if (state !== 'thinking' && state !== 'speaking') {
-            setState('listening')
-            startAutoListen()
-          }
-        }, 1000)
+      // onEnd
+      (hadFinal) => {
+        if (!mountedRef.current) return
+        setWaving(false)
+        if (!hadFinal) {
+          // restart listening after short pause
+          setTimeout(() => {
+            if (mountedRef.current) beginListen(langRef.current)
+          }, 1000)
+        }
       }
     )
   }
 
-  async function handleQuery(text) {
-    setState('thinking')
-    setWaveActive(false)
+  async function processQuery(text, lc) {
+    if (!mountedRef.current) return
+    setPhase('thinking')
 
-    // Check for navigation commands
-    const routes = VOICE_ROUTES[langCode] || VOICE_ROUTES.en
-    let navigated = false
-    const lowerText = text.toLowerCase()
-
-    for (const [keyword, route] of Object.entries(routes)) {
-      if (lowerText.includes(keyword.toLowerCase())) {
-        navigate(route)
-        navigated = true
-        const navMsg = {
-          en: `Opening ${route.replace('/', '').replace('-', ' ')} for you.`,
-          hi: `${route.replace('/', '').replace('-', ' ')} खोल रहा हूँ।`,
-          mr: `${route.replace('/', '').replace('-', ' ')} उघडत आहे।`,
-          pa: `${route.replace('/', '').replace('-', ' ')} ਖੋਲ੍ਹ ਰਿਹਾ ਹਾਂ।`,
-          ml: `${route.replace('/', '').replace('-', ' ')} തുറക്കുന്നു.`,
-          ta: `${route.replace('/', '').replace('-', ' ')} திறக்கிறேன்.`,
+    // Check for navigation intent first
+    const lower = text.toLowerCase()
+    for (const [route, keywords] of Object.entries(NAV_MAP)) {
+      if (keywords.some(kw => lower.includes(kw.toLowerCase()))) {
+        const msgs = {
+          en:`Opening ${route.replace('/', '').replace(/-/g,' ')} for you.`,
+          hi:`${route.replace('/', '')} खोल रहा हूँ।`,
+          mr:`${route.replace('/', '')} उघडत आहे.`,
+          pa:`${route.replace('/', '')} ਖੋਲ੍ਹ ਰਿਹਾ ਹਾਂ।`,
+          ml:`${route.replace('/', '')} തുറക്കുന്നു.`,
+          ta:`${route.replace('/', '')} திறக்கிறேன்.`,
+          te:`${route.replace('/', '')} తెరుస్తున్నాను.`,
+          kn:`${route.replace('/', '')} ತೆರೆಯುತ್ತಿದ್ದೇನೆ.`,
+          gu:`${route.replace('/', '')} ખોલી રહ્યો છું.`,
+          bn:`${route.replace('/', '')} খুলছি।`,
+          ur:`${route.replace('/', '')} کھول رہا ہوں۔`,
         }
-        const msg = navMsg[langCode] || navMsg.en
-        setResponse(msg)
-        setState('speaking')
-        try { await speakText(msg, langCode, ttsApiKey) } catch(e){}
-        setState('listening')
-        startAutoListen()
+        const msg = msgs[lc] || msgs.en
+        navigate(route)
+        setReply(msg)
+        setReplyLang(lc)
+        setPhase('responding')
+        await speakText(msg, lc)
+        if (mountedRef.current) beginListen(langRef.current)
         return
       }
     }
 
-    // Process as AI query
-    const answer = await processVoiceQuery(text, langCode)
-    setResponse(answer)
-    setState('speaking')
-    try { await speakText(answer, langCode, ttsApiKey) } catch(e){}
-    setState('listening')
-    startAutoListen()
+    // AI answer
+    const result = await answerQuery(text, lc)
+    if (!mountedRef.current) return
+
+    setReply(result.text)
+    setReplyLang(result.lang)
+    setPhase('responding')
+    await speakText(result.text, result.lang)
+    if (mountedRef.current) beginListen(langRef.current)
   }
 
-  function handleManualMic() {
-    if (state === 'listening' && waveActive) {
-      stopListening()
-      setState('idle')
+  // Manual mic toggle
+  function toggleMic() {
+    if (phase === 'listening' && waving) {
+      stopRecog()
+      setPhase('idle')
+      setWaving(false)
     } else {
-      setState('listening')
-      startAutoListen()
+      setError('')
+      beginListen(langCode)
     }
   }
 
-  async function repeatGreeting() {
-    stopListening()
-    setState('speaking')
-    const g = GREETINGS[langCode] || GREETINGS.en
-    setResponse(g.text)
-    try { await speakText(g.text, langCode, ttsApiKey) } catch(e){}
-    setState('listening')
-    startAutoListen()
+  // Quick command tap
+  async function quickCmd(q) {
+    stopRecog()
+    setTranscript(q)
+    await processQuery(q, langCode)
   }
 
-  // Don't show on language chooser screen
+  // Don't show on language chooser screen or if not supported
+  if (!hasSupport) return null
   if (location.pathname === '/lang') return null
 
-  const stateLabel = {
-    idle:     t.voiceAssistant || 'Voice Assistant',
-    greeting: langCode==='hi' ? 'स्वागत कर रहा हूँ…' : langCode==='mr' ? 'स्वागत करत आहे…' : langCode==='pa' ? 'ਸੁਆਗਤ ਕਰ ਰਿਹਾ ਹਾਂ…' : langCode==='ml' ? 'സ്വാഗതം…' : langCode==='ta' ? 'வரவேற்கிறேன்…' : 'Greeting…',
-    listening:langCode==='hi' ? '🎤 सुन रहा हूँ…' : langCode==='mr' ? '🎤 ऐकतोय…' : langCode==='pa' ? '🎤 ਸੁਣ ਰਿਹਾ ਹਾਂ…' : langCode==='ml' ? '🎤 കേൾക്കുന്നു…' : langCode==='ta' ? '🎤 கேட்கிறேன்…' : '🎤 Listening…',
-    thinking: langCode==='hi' ? '🤔 सोच रहा हूँ…' : langCode==='mr' ? '🤔 विचार करतोय…' : langCode==='pa' ? '🤔 ਸੋਚ ਰਿਹਾ ਹਾਂ…' : langCode==='ml' ? '🤔 ചിന്തിക്കുന്നു…' : langCode==='ta' ? '🤔 யோசிக்கிறேன்…' : '🤔 Thinking…',
-    speaking: langCode==='hi' ? '🔊 बोल रहा हूँ…' : langCode==='mr' ? '🔊 बोलत आहे…' : langCode==='pa' ? '🔊 ਬੋਲ ਰਿਹਾ ਹਾਂ…' : langCode==='ml' ? '🔊 സംസാരിക്കുന്നു…' : langCode==='ta' ? '🔊 பேசுகிறேன்…' : '🔊 Speaking…',
+  // Status label per phase and language
+  const STATUS = {
+    idle:      { en:'Voice Assistant',  hi:'आवाज़ सहायक',   mr:'आवाज सहाय्यक',  pa:'ਆਵਾਜ਼ ਸਹਾਇਕ', ml:'ശബ്ദ സഹായി',    ta:'குரல் உதவியாளர்' },
+    greeting:  { en:'Greeting…',        hi:'स्वागत…',        mr:'स्वागत…',        pa:'ਸੁਆਗਤ…',       ml:'സ്വാഗതം…',      ta:'வரவேற்கிறேன்…' },
+    listening: { en:'🎤 Listening…',     hi:'🎤 सुन रहा हूँ…', mr:'🎤 ऐकतोय…',      pa:'🎤 ਸੁਣ ਰਿਹਾ ਹਾਂ…',ml:'🎤 കേൾക്കുന്നു…',ta:'🎤 கேட்கிறேன்…' },
+    thinking:  { en:'🤔 Thinking…',      hi:'🤔 सोच रहा हूँ…',mr:'🤔 विचार करतो…', pa:'🤔 ਸੋਚ ਰਿਹਾ…',  ml:'🤔 ചിന്തിക്കുന്നു…',ta:'🤔 யோசிக்கிறேன்…'},
+    responding:{ en:'🔊 Speaking…',      hi:'🔊 बोल रहा हूँ…', mr:'🔊 बोलत आहे…',  pa:'🔊 ਬੋਲ ਰਿਹਾ ਹਾਂ…',ml:'🔊 സംസാരിക്കുന്നു…',ta:'🔊 பேசுகிறேன்…'},
   }
+  const statusText = (STATUS[phase] || STATUS.idle)[langCode] || (STATUS[phase] || STATUS.idle).en
 
-  if (!voiceSupported) return null
+  const QUICK = [
+    { en:'Prices',  hi:'भाव',   mr:'भाव',  pa:'ਭਾਅ', ml:'വില',  ta:'விலை',te:'ధర',  kn:'ಬೆಲೆ',gu:'ભાવ',bn:'দাম',ur:'قیمت',  q:'price'   },
+    { en:'Schemes', hi:'योजना', mr:'योजना',pa:'ਯੋਜਨਾ',ml:'പദ്ധതി',ta:'திட்டம்',te:'పథకం',kn:'ಯೋಜನೆ',gu:'યોજના',bn:'প্রকল্প',ur:'منصوبہ', q:'scheme'  },
+    { en:'Loan',    hi:'ऋण',    mr:'कर्ज', pa:'ਕਰਜ਼ਾ',ml:'വായ്പ',ta:'கடன்',  te:'రుణం', kn:'ಸಾಲ', gu:'લોન', bn:'ঋণ',   ur:'قرض',    q:'loan'    },
+    { en:'Disease', hi:'रोग',   mr:'रोग',  pa:'ਰੋਗ', ml:'രോഗം', ta:'நோய்',  te:'వ్యాధి',kn:'ರೋಗ',gu:'રોગ',bn:'রোগ',  ur:'بیماری', q:'disease' },
+    { en:'Mandi',   hi:'मंडी',  mr:'मंडी', pa:'ਮੰਡੀ',ml:'മണ്ടി', ta:'மண்டி', te:'మండి', kn:'ಮಂಡಿ',gu:'મંડી',bn:'মান্ডি',ur:'منڈی',  q:'mandi'   },
+    { en:'Profit',  hi:'लाभ',   mr:'नफा',  pa:'ਮੁਨਾਫਾ',ml:'ലാഭം',ta:'லாபம்',te:'లాభం',kn:'ಲಾಭ',gu:'નફો',bn:'লাভ',  ur:'منافع', q:'profit'  },
+  ]
+
+  const HINTS = {
+    en:'💡 Say: "show prices" · "crop disease" · "govt scheme" · "nearby mandi"',
+    hi:'💡 बोलें: "भाव बताओ" · "रोग पहचानो" · "योजना दिखाओ" · "मंडी कहाँ"',
+    mr:'💡 बोला: "भाव सांगा" · "रोग ओळखा" · "योजना दाखवा"',
+    pa:'💡 ਬੋਲੋ: "ਭਾਅ ਦੱਸੋ" · "ਰੋਗ ਦੱਸੋ" · "ਯੋਜਨਾ ਦਿਖਾਓ"',
+    ml:'💡 പറയൂ: "വില പറ" · "രോഗം" · "പദ്ധതി" · "മണ്ടി"',
+    ta:'💡 சொல்லுங்கள்: "விலை" · "நோய்" · "திட்டம்" · "மண்டி"',
+    te:'💡 చెప్పండి: "ధర" · "వ్యాధి" · "పథకం" · "మండి"',
+    kn:'💡 ಹೇಳಿ: "ಬೆಲೆ" · "ರೋಗ" · "ಯೋಜನೆ" · "ಮಂಡಿ"',
+    gu:'💡 બોલો: "ભાવ" · "રોગ" · "યોજના" · "મંડી"',
+    bn:'💡 বলুন: "দাম" · "রোগ" · "প্রকল্প" · "মান্ডি"',
+    ur:'💡 کہیں: "قیمت" · "بیماری" · "منصوبہ" · "منڈی"',
+  }
+  const hint = HINTS[langCode] || HINTS.en
+
+  const MIC_STOP  = {en:'Stop', hi:'रोकें',mr:'थांबा',pa:'ਰੋਕੋ',ml:'നിർ.',ta:'நிறு.',te:'ఆపు',kn:'ನಿಲ್ಲಿ',gu:'રોકો',bn:'থামুন',ur:'روکیں'}
+  const MIC_SPEAK = {en:'Speak',hi:'बोलें',mr:'बोला',pa:'ਬੋਲੋ',ml:'സംസാ.',ta:'பேசுங்..',te:'మాట్లా.',kn:'ಮಾತಾ.',gu:'બોલો',bn:'বলুন',ur:'بولیں'}
+  const micLabel = (phase==='listening'&&waving) ? (MIC_STOP[langCode]||'Stop') : (MIC_SPEAK[langCode]||'Speak')
 
   return (
-    <div className={`${styles.assistant} ${isMinimized ? styles.minimized : ''} ${styles[state]}`}>
+    <div className={`${styles.va} ${minimized?styles.min:''} ${styles['s_'+phase]}`}>
+
       {/* Header */}
-      <div className={styles.header} onClick={() => isMinimized && setIsMinimized(false)}>
-        <div className={styles.avatar}>
-          <div className={`${styles.avatarInner} ${state==='listening'?styles.avatarPulse:''} ${state==='speaking'?styles.avatarSpeak:''}`}>
-            🌾
+      <div className={styles.hd} onClick={() => minimized && setMinimized(false)}>
+        <div className={`${styles.av} ${phase==='listening'?styles.avL:''} ${phase==='responding'?styles.avS:''}`}>
+          🌾
+        </div>
+        {!minimized && (
+          <div className={styles.hdTxt}>
+            <div className={styles.hdName}>KrishiChain AI</div>
+            <div className={styles.hdSt}>{statusText}</div>
           </div>
-          {state === 'listening' && <div className={styles.listenRing}/>}
-        </div>
-        <div className={styles.headerText}>
-          <div className={styles.name}>KrishiChain {t.voiceAssistant||'Assistant'}</div>
-          <div className={styles.status}>{stateLabel[state]}</div>
-        </div>
-        <div className={styles.headerActions}>
-          <button className={styles.iconBtn} onClick={e => { e.stopPropagation(); repeatGreeting() }} title="Repeat greeting">↺</button>
-          <button className={styles.iconBtn} onClick={e => { e.stopPropagation(); setIsMinimized(p => !p) }} title={isMinimized ? 'Expand' : 'Minimize'}>
-            {isMinimized ? '▲' : '▼'}
+        )}
+        <div className={styles.hdBtns}>
+          {!minimized && (
+            <button className={styles.hBtn} title="Repeat"
+              onClick={e => { e.stopPropagation(); stopRecog(); if(window.speechSynthesis) window.speechSynthesis.cancel(); startGreet(langCode) }}>
+              ↺
+            </button>
+          )}
+          <button className={styles.hBtn} onClick={e => { e.stopPropagation(); setMinimized(p=>!p) }}>
+            {minimized ? '▲' : '▼'}
           </button>
         </div>
       </div>
 
-      {!isMinimized && (
-        <>
+      {!minimized && (
+        <div className={styles.body}>
+
           {/* Wave visualizer */}
-          <div className={styles.waveBox}>
-            {waveActive
-              ? <div className={styles.wave}>{[...Array(12)].map((_,i) => <div key={i} className={styles.bar} style={{animationDelay:`${i*0.08}s`}}/>)}</div>
-              : <div className={styles.waveFlatLine}/>
+          <div className={styles.wRow}>
+            {waving
+              ? <div className={styles.wBars}>
+                  {Array.from({length:14},(_,i) => (
+                    <div key={i} className={styles.wBar}
+                      style={{animationDelay:`${i*0.07}s`, animationDuration:`${0.45+((i*7)%5)*0.08}s`}}/>
+                  ))}
+                </div>
+              : <div className={styles.flat}/>
             }
           </div>
 
-          {/* Transcript */}
-          {transcript && (
-            <div className={styles.transcript}>
-              <span className={styles.transcriptLabel}>You: </span>
-              <span className={styles.transcriptText}>{transcript}</span>
+          {/* Detected different language badge */}
+          {replyLang && replyLang !== langCode && (
+            <div className={styles.detLang}>
+              🌐 Detected: {replyLang.toUpperCase()} · Responding in same language
             </div>
           )}
 
-          {/* Response */}
-          {response && (
-            <div className={styles.response}>
-              <div className={styles.responseText}>{response}</div>
+          {/* User transcript */}
+          {transcript && (
+            <div className={styles.uBubble}>
+              <span className={styles.bLabel}>You:</span>
+              <span className={styles.bText}>{transcript}</span>
+            </div>
+          )}
+
+          {/* AI reply */}
+          {reply && (
+            <div className={styles.aiBubble}>
+              <span className={styles.bLabel}>KrishiChain:</span>
+              <span className={styles.bText}>{reply}</span>
             </div>
           )}
 
           {/* Error */}
           {error && (
-            <div className={styles.errorBox}>
+            <div className={styles.errBox}>
               ⚠️ {error}
-              <button className={styles.retryBtn} onClick={() => { setError(''); setState('listening'); startAutoListen() }}>
-                {langCode==='hi'?'दोबारा कोशिश':'Retry'}
+              <button className={styles.retryBtn}
+                onClick={() => { setError(''); beginListen(langCode) }}>
+                {({hi:'फिर',mr:'पुन्हा',pa:'ਦੁਬਾਰਾ',ml:'വീണ്ടും',ta:'மீண்டும்',te:'మళ్ళీ',kn:'ಮತ್ತೆ',gu:'ફરી',bn:'আবার',ur:'دوبارہ'})[langCode] || 'Retry'}
               </button>
             </div>
           )}
 
-          {/* Controls */}
-          <div className={styles.controls}>
-            <button
-              className={`${styles.micBtn} ${state==='listening'&&waveActive ? styles.micActive : ''}`}
-              onClick={handleManualMic}
-            >
-              <span className={styles.micIcon}>{state==='listening'&&waveActive ? '⏹' : '🎤'}</span>
-              <span className={styles.micLabel}>
-                {state==='listening'&&waveActive
-                  ? (langCode==='hi'?'रोकें':langCode==='mr'?'थांबा':langCode==='pa'?'ਰੋਕੋ':langCode==='ml'?'നിർത്തൂ':langCode==='ta'?'நிறுத்து':'Stop')
-                  : (langCode==='hi'?'बोलें':langCode==='mr'?'बोला':langCode==='pa'?'ਬੋਲੋ':langCode==='ml'?'സംസാരിക്കൂ':langCode==='ta'?'பேசுங்கள்':'Speak')
-                }
-              </span>
-            </button>
+          {/* Mic toggle button */}
+          <button
+            className={`${styles.micBtn} ${phase==='listening'&&waving ? styles.micOn : ''}`}
+            onClick={toggleMic}
+          >
+            <span className={styles.micIco}>{phase==='listening'&&waving ? '⏹' : '🎤'}</span>
+            <span className={styles.micLbl}>{micLabel}</span>
+          </button>
 
-            {/* Quick commands */}
-            <div className={styles.quickCmds}>
-              {[
-                { label: langCode==='hi'?'भाव':langCode==='mr'?'भाव':langCode==='pa'?'ਭਾਅ':langCode==='ml'?'വില':langCode==='ta'?'விலை':'Prices', query: langCode==='hi'?'फसल का भाव बताओ':langCode==='mr'?'पीक भाव सांगा':langCode==='pa'?'ਫਸਲ ਦਾ ਭਾਅ ਦੱਸੋ':langCode==='ml'?'വിള വില':langCode==='ta'?'பயிர் விலை':'crop price' },
-                { label: langCode==='hi'?'योजना':langCode==='mr'?'योजना':langCode==='pa'?'ਯੋਜਨਾ':langCode==='ml'?'പദ്ധതി':langCode==='ta'?'திட்டம்':'Schemes', query: langCode==='hi'?'सरकारी योजना':langCode==='mr'?'सरकारी योजना':langCode==='pa'?'ਸਰਕਾਰੀ ਯੋਜਨਾ':langCode==='ml'?'സർക്കാർ പദ്ധതി':langCode==='ta'?'அரசு திட்டம்':'government scheme' },
-                { label: langCode==='hi'?'ऋण':langCode==='mr'?'कर्ज':langCode==='pa'?'ਕਰਜ਼ਾ':langCode==='ml'?'വായ്പ':langCode==='ta'?'கடன்':'Loan', query: langCode==='hi'?'सस्ता ऋण चाहिए':langCode==='mr'?'स्वस्त कर्ज हवे':langCode==='pa'?'ਸਸਤਾ ਕਰਜ਼ਾ':langCode==='ml'?'വായ്പ':langCode==='ta'?'கடன்':'cheap loan' },
-                { label: langCode==='hi'?'रोग':langCode==='mr'?'रोग':langCode==='pa'?'ਰੋਗ':langCode==='ml'?'രോഗം':langCode==='ta'?'நோய்':'Disease', query: 'disease' },
-              ].map((cmd, i) => (
-                <button key={i} className={styles.quickBtn} onClick={() => handleQuery(cmd.query)}>
-                  {cmd.label}
-                </button>
-              ))}
-            </div>
+          {/* Quick chips */}
+          <div className={styles.chips}>
+            {QUICK.map(c => (
+              <button key={c.q} className={styles.chip} onClick={() => quickCmd(c.q)}>
+                {c[langCode] || c.en}
+              </button>
+            ))}
           </div>
 
-          <div className={styles.hint}>
-            {langCode==='hi' ? '💡 बोलें: "भाव बताओ" या "योजना दिखाओ" या "मंडी दिखाओ"'
-             : langCode==='mr' ? '💡 बोला: "भाव सांगा" किंवा "योजना दाखवा"'
-             : langCode==='pa' ? '💡 ਬੋਲੋ: "ਭਾਅ ਦੱਸੋ" ਜਾਂ "ਯੋਜਨਾ ਦਿਖਾਓ"'
-             : langCode==='ml' ? '💡 പറയൂ: "വില പറ" അല്ലെങ്കിൽ "പദ്ധതി കാണിക്കൂ"'
-             : langCode==='ta' ? '💡 சொல்லுங்கள்: "விலை சொல்" அல்லது "திட்டம் காட்டு"'
-             : '💡 Say: "show prices" or "government scheme" or "nearby mandi"'}
-          </div>
-        </>
+          <div className={styles.hint}>{hint}</div>
+        </div>
       )}
     </div>
   )

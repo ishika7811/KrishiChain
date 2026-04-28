@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { LangProvider, useLang } from './lib/LangContext'
 import LangChooser from './pages/LangChooser'
 import Sidebar from './components/Sidebar'
-import VoiceAssistant from './components/VoiceAssistant'
+import VoiceAssistant from './components/VoiceAssistant';
 import Dashboard from './pages/Dashboard'
 import CropDoctor from './pages/CropDoctor'
 import Forecast from './pages/Forecast'

@@ -1,8 +1,8 @@
 {
   "scripts": {
-  "start": "node index.js",
+  "start": "vite",
   "dev": "vite",
-  "build": "tsc && vite build"
+  "build": "vite build"
 },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

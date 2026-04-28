@@ -1,310 +1,299 @@
-// ─── VOICE ASSISTANT: Proper Indian language support ──────────────────────────
-// Strategy:
-// 1. Speech-to-Text: Web Speech API (works in Chrome on Android/desktop)
-// 2. Text-to-Speech: Web Speech API first → if no Indian voice found → use
-//    Google Cloud TTS API (requires VITE_TTS_API_KEY)
-// 3. Fallback: Show text if voice unavailable
 
-// BCP-47 language tags for Indian languages
-export const LANG_TTS_MAP = {
-  en:  { bcp:'en-IN',  voiceName:['en-IN','English (India)','Google हिन्दी'] },
-  hi:  { bcp:'hi-IN',  voiceName:['hi-IN','Google हिन्दी','Hindi India'] },
-  mr:  { bcp:'mr-IN',  voiceName:['mr-IN','Marathi','Google मराठी'] },
-  bn:  { bcp:'bn-IN',  voiceName:['bn-IN','Bengali','Bangla India'] },
-  te:  { bcp:'te-IN',  voiceName:['te-IN','Telugu','Google తెలుగు'] },
-  ta:  { bcp:'ta-IN',  voiceName:['ta-IN','Tamil','Google தமிழ்'] },
-  gu:  { bcp:'gu-IN',  voiceName:['gu-IN','Gujarati','Google ગુજરાતી'] },
-  kn:  { bcp:'kn-IN',  voiceName:['kn-IN','Kannada','Google ಕನ್ನಡ'] },
-  ml:  { bcp:'ml-IN',  voiceName:['ml-IN','Malayalam','Google മലയാളം'] },
-  pa:  { bcp:'pa-IN',  voiceName:['pa-IN','Punjabi','Google ਪੰਜਾਬੀ'] },
-  or:  { bcp:'or-IN',  voiceName:['or-IN','Odia'] },
-  as:  { bcp:'as-IN',  voiceName:['as-IN','Assamese'] },
-  ur:  { bcp:'ur-IN',  voiceName:['ur-IN','Urdu','Google اردو'] },
-  ne:  { bcp:'ne-NP',  voiceName:['ne-NP','Nepali'] },
-  mai: { bcp:'hi-IN',  voiceName:['hi-IN','Hindi India'] },
-  kok: { bcp:'hi-IN',  voiceName:['hi-IN'] },
-  mni: { bcp:'hi-IN',  voiceName:['hi-IN'] },
-  sat: { bcp:'hi-IN',  voiceName:['hi-IN'] },
-  ks:  { bcp:'ur-IN',  voiceName:['ur-IN'] },
-  doi: { bcp:'hi-IN',  voiceName:['hi-IN'] },
-  sd:  { bcp:'ur-IN',  voiceName:['ur-IN'] },
-  sa:  { bcp:'hi-IN',  voiceName:['hi-IN'] },
+// KrishiChain Voice Engine - Fixed & Simplified
+// Supports all 22 Indian languages
+
+// BCP-47 language codes for speech APIs
+export const LANG_BCP = {
+  en:'en-IN', hi:'hi-IN', mr:'mr-IN', bn:'bn-IN', te:'te-IN',
+  ta:'ta-IN', gu:'gu-IN', kn:'kn-IN', ml:'ml-IN', pa:'pa-IN',
+  or:'or-IN', as:'as-IN', ur:'ur-IN', ne:'ne-NP',
+  mai:'hi-IN', kok:'hi-IN', mni:'bn-IN', sat:'hi-IN',
+  ks:'ur-IN', doi:'hi-IN', sd:'ur-IN', sa:'hi-IN',
 }
 
-// ─── TEXT TO SPEECH ────────────────────────────────────────────────────────────
-export function speakText(text, langCode = 'en', apiKey = null) {
+// Detect language from Unicode script
+export function detectScript(text) {
+  if (!text) return null
+  if (/[\u0900-\u097F]/.test(text)) return 'hi'   // Devanagari
+  if (/[\u0A00-\u0A7F]/.test(text)) return 'pa'   // Gurmukhi
+  if (/[\u0980-\u09FF]/.test(text)) return 'bn'   // Bengali/Assamese
+  if (/[\u0C00-\u0C7F]/.test(text)) return 'te'   // Telugu
+  if (/[\u0B80-\u0BFF]/.test(text)) return 'ta'   // Tamil
+  if (/[\u0A80-\u0AFF]/.test(text)) return 'gu'   // Gujarati
+  if (/[\u0C80-\u0CFF]/.test(text)) return 'kn'   // Kannada
+  if (/[\u0D00-\u0D7F]/.test(text)) return 'ml'   // Malayalam
+  if (/[\u0B00-\u0B7F]/.test(text)) return 'or'   // Odia
+  if (/[\u0600-\u06FF]/.test(text)) return 'ur'   // Arabic/Urdu
+  return null
+}
+
+// ── SPEAK TEXT ──────────────────────────────────────────────────────────────
+export function speakText(text, langCode) {
   return new Promise((resolve) => {
-    if (!text) { resolve(); return }
+    if (!text || !window.speechSynthesis) { resolve(); return }
 
-    // Stop any ongoing speech
-    if (window.speechSynthesis) window.speechSynthesis.cancel()
+    // Cancel anything playing
+    window.speechSynthesis.cancel()
 
-    const langConfig = LANG_TTS_MAP[langCode] || LANG_TTS_MAP.en
-    const bcp = langConfig.bcp
+    const bcp = LANG_BCP[langCode] || 'hi-IN'
 
-    // Try Web Speech API first
-    if (window.speechSynthesis) {
-      const trySpeak = () => {
-        const voices = window.speechSynthesis.getVoices()
+    const doUtter = () => {
+      const voices = window.speechSynthesis.getVoices()
+      const prefix = bcp.split('-')[0]
 
-        // Find best matching voice for the language
-        let voice = null
+      // Find best voice: exact match → prefix match → any English
+      const voice =
+        voices.find(v => v.lang === bcp) ||
+        voices.find(v => v.lang.startsWith(prefix)) ||
+        voices.find(v => v.lang === 'en-IN') ||
+        voices.find(v => v.lang.startsWith('en')) ||
+        null
 
-        // First try exact BCP match
-        voice = voices.find(v => v.lang === bcp)
+      const utt = new SpeechSynthesisUtterance(text.slice(0, 2000))
+      utt.lang   = bcp
+      utt.rate   = 0.88
+      utt.pitch  = 1.0
+      utt.volume = 1.0
+      if (voice) utt.voice = voice
 
-        // Then try language prefix match (e.g. hi-IN matches hi)
-        if (!voice) {
-          const prefix = bcp.split('-')[0]
-          voice = voices.find(v => v.lang.startsWith(prefix))
-        }
+      utt.onend   = () => resolve()
+      utt.onerror = () => resolve()
+      setTimeout(resolve, 25000) // safety
 
-        // Then try name match
-        if (!voice && langConfig.voiceName) {
-          for (const name of langConfig.voiceName) {
-            voice = voices.find(v => v.name.includes(name) || v.lang.includes(name))
-            if (voice) break
-          }
-        }
+      window.speechSynthesis.speak(utt)
+    }
 
-        // Fallback to en-IN
-        if (!voice) voice = voices.find(v => v.lang === 'en-IN')
-        if (!voice) voice = voices.find(v => v.lang.startsWith('en'))
-
-        const utterance = new SpeechSynthesisUtterance(text)
-        if (voice) utterance.voice = voice
-        utterance.lang = bcp
-        utterance.rate = 0.85   // slightly slower — easier to understand
-        utterance.pitch = 1.05  // slightly warmer pitch
-        utterance.volume = 1.0
-
-        utterance.onend = () => resolve()
-        utterance.onerror = () => {
-          // If Web Speech fails, try Google Cloud TTS
-          if (apiKey) {
-            speakWithGoogleTTS(text, bcp, apiKey).then(resolve).catch(resolve)
-          } else {
-            resolve()
-          }
-        }
-
-        window.speechSynthesis.speak(utterance)
-      }
-
-      // Voices may not be loaded yet on first call
-      if (window.speechSynthesis.getVoices().length > 0) {
-        trySpeak()
-      } else {
-        window.speechSynthesis.onvoiceschanged = () => {
-          window.speechSynthesis.onvoiceschanged = null
-          trySpeak()
-        }
-        // Timeout fallback if onvoiceschanged never fires
-        setTimeout(() => {
-          window.speechSynthesis.onvoiceschanged = null
-          trySpeak()
-        }, 1000)
-      }
-    } else if (apiKey) {
-      speakWithGoogleTTS(text, bcp, apiKey).then(resolve).catch(resolve)
+    const voices = window.speechSynthesis.getVoices()
+    if (voices.length > 0) {
+      doUtter()
     } else {
-      resolve()
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.onvoiceschanged = null
+        doUtter()
+      }
+      setTimeout(() => {
+        window.speechSynthesis.onvoiceschanged = null
+        doUtter()
+      }, 1500)
     }
   })
 }
 
-// Google Cloud TTS (fallback when browser voices unavailable)
-async function speakWithGoogleTTS(text, languageCode, apiKey) {
-  try {
-    const res = await fetch(
-      `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          input: { text },
-          voice: { languageCode, ssmlGender: 'FEMALE' },
-          audioConfig: { audioEncoding: 'MP3', speakingRate: 0.9, pitch: 1.0 }
-        })
-      }
-    )
-    const data = await res.json()
-    if (data.audioContent) {
-      const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`)
-      await audio.play()
-      await new Promise(r => { audio.onended = r })
-    }
-  } catch (e) {
-    console.warn('Google TTS fallback failed:', e)
-  }
-}
-
-// Get available voices for a language (for UI display)
-export function getAvailableVoices(langCode) {
-  if (!window.speechSynthesis) return []
-  const bcp = LANG_TTS_MAP[langCode]?.bcp || 'en-IN'
-  const voices = window.speechSynthesis.getVoices()
-  const prefix = bcp.split('-')[0]
-  return voices.filter(v => v.lang.startsWith(prefix) || v.lang === bcp)
-}
-
-export function isSpeechSupported() {
-  return 'speechSynthesis' in window
-}
-
-// ─── SPEECH TO TEXT ────────────────────────────────────────────────────────────
-export function startListening(langCode = 'hi', onResult, onError, onEnd) {
+// ── LISTEN ──────────────────────────────────────────────────────────────────
+export function listenOnce(langCode, onResult, onError, onEnd) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition
   if (!SR) {
-    onError?.('Speech recognition not supported in this browser. Please use Chrome.')
+    onError('Please open this app in Google Chrome for voice support.')
     return null
   }
 
-  const recognition = new SR()
-  const bcp = LANG_TTS_MAP[langCode]?.bcp || 'hi-IN'
+  const bcp = LANG_BCP[langCode] || 'hi-IN'
+  const r   = new SR()
+  r.lang              = bcp
+  r.continuous        = false
+  r.interimResults    = true
+  r.maxAlternatives   = 3
 
-  recognition.lang = bcp
-  recognition.continuous = false
-  recognition.interimResults = true
-  recognition.maxAlternatives = 3
+  let gotFinal = false
 
-  recognition.onresult = (event) => {
-    let finalTranscript = ''
-    let interimTranscript = ''
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      if (event.results[i].isFinal) {
-        finalTranscript += event.results[i][0].transcript
-      } else {
-        interimTranscript += event.results[i][0].transcript
-      }
+  r.onresult = (e) => {
+    let fin = '', interim = ''
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) fin += e.results[i][0].transcript
+      else interim += e.results[i][0].transcript
     }
-    onResult?.(finalTranscript || interimTranscript, !!finalTranscript)
+    if (fin) { gotFinal = true; onResult(fin.trim(), true) }
+    else if (interim) onResult(interim.trim(), false)
   }
 
-  recognition.onerror = (event) => {
-    const msgs = {
-      'not-allowed': 'Microphone permission denied. Please allow microphone access.',
-      'no-speech': 'No speech detected. Please speak clearly and try again.',
-      'network': 'Network error. Check your internet connection.',
+  r.onerror = (e) => {
+    const MAP = {
+      'not-allowed' : 'Microphone blocked. Please allow microphone in browser settings.',
+      'no-speech'   : 'No speech heard. Please speak clearly.',
+      'network'     : 'Network issue. Check your internet.',
       'audio-capture': 'No microphone found.',
+      'aborted'     : '',
     }
-    onError?.(msgs[event.error] || `Error: ${event.error}`)
+    const msg = MAP[e.error] || ''
+    if (msg) onError(msg)
   }
 
-  recognition.onend = () => onEnd?.()
+  r.onend = () => onEnd(gotFinal)
 
-  try {
-    recognition.start()
-    return recognition
-  } catch (e) {
-    onError?.('Could not start microphone: ' + e.message)
-    return null
-  }
+  try { r.start() } catch (e) { onError('Cannot start microphone: ' + e.message) }
+  return r
 }
 
-// ─── VOICE QUERY PROCESSOR (AI-powered Q&A) ───────────────────────────────────
-export async function processVoiceQuery(transcript, langCode = 'en') {
-  await new Promise(r => setTimeout(r, 800))
+// ── ANSWER QUERY ────────────────────────────────────────────────────────────
+export function answerQuery(text, appLang) {
+  const lower = text.toLowerCase()
 
-  const text = transcript.toLowerCase()
-  const responses = {
-    en: {
-      price: `Today's tomato price in most mandis is ₹24-28 per kg. Onion is ₹20-24 per kg. Wheat MSP is ₹2,275 per quintal. For live prices, check the AI Forecast section.`,
-      disease: `I can help diagnose crop disease. Please go to Crop Doctor and take a clear photo of the affected leaf or stem. I will identify the disease and tell you the treatment.`,
-      scheme: `You may be eligible for PM-KISAN (₹6,000/year), PMFBY crop insurance, and Kisan Credit Card at 4% interest. Go to Government Schemes section to check your eligibility.`,
-      weather: `For weather alerts specific to your location, please allow location access. Heavy rain is expected in parts of Maharashtra and UP this week — postpone fertilizer application.`,
-      loan: `The cheapest loans for farmers: World Bank IFAD at 1.25%/year, GIZ Germany at 2%/year, Kisan Credit Card at 4%/year. Go to International Loans section for details.`,
-      default: `I heard you say: "${transcript}". I can help with: crop prices, disease diagnosis, government schemes, loans, and finding nearby mandis. What would you like to know?`,
+  // Detect language from script; fall back to app language
+  const detectedLang = detectScript(text) || appLang
+  const lang = detectedLang
+
+  // Intent detection — multi-language keywords
+  const is = (...words) => words.some(w => lower.includes(w))
+
+  let intent = 'help'
+  if (is('price','rate','bhav','भाव','दाम','ਭਾਅ','ధర','விலை','ಬೆಲೆ','വില','মোল','ভাও','ਦਾਮ','mol','mandi rate','narakh'))
+    intent = 'price'
+  else if (is('disease','sick','yellow','spot','rot','blight','रोग','बीमारी','ਰੋਗ','రోగ','நோய்','ರೋಗ','രോഗ','रोग','পীক','rog','keeda','kida'))
+    intent = 'disease'
+  else if (is('scheme','yojana','government','subsidy','kisan','pmkisan','insurance','pmfby','योजना','सरकार','ਯੋਜਨਾ','పథకం','திட்டம்','ಯೋಜನೆ','പദ്ധതി','योजना','প্রকল্প'))
+    intent = 'scheme'
+  else if (is('loan','karz','rin','credit','bank','borrow','ऋण','कर्ज','ब्याज','ਕਰਜ਼ਾ','రుణ','கடன்','ಸಾಲ','വായ്പ','कर्ज','ঋণ'))
+    intent = 'loan'
+  else if (is('weather','rain','baarish','flood','मौसम','बारिश','ਮੌਸਮ','వాతావరణ','வானிலை','ಹವಾಮಾನ','കാലാവസ്ഥ','हवामान','আবহাওয়া'))
+    intent = 'weather'
+  else if (is('mandi','market','nearby','nearest','sell','मंडी','बाजार','ਮੰਡੀ','మార్కెట్','சந்தை','ಮಾರ್ಕೆಟ್','ചന്ത','बाजार','মান্ডি'))
+    intent = 'mandi'
+  else if (is('cheat','fraud','dhokha','wrong rate','low price','धोखा','ठगी','ਧੋਖਾ','మోసం','மோசடி','ಮೋಸ','ചതി','फसवणूक','প্রতারণা'))
+    intent = 'cheat'
+  else if (is('profit','transport','cost','loss','calculate','लाभ','ਮੁਨਾਫਾ','లాభ','லாபம்','ಲಾಭ','ലാഭ','नफा','লাভ'))
+    intent = 'profit'
+
+  const DB = {
+    price: {
+      en: 'Today\'s prices: Tomato ₹24-28 per kg. Onion ₹20-24. Potato ₹16-20. Wheat MSP ₹2275 per quintal. Cotton MSP ₹6620. Go to AI Forecast for live mandi prices.',
+      hi: 'आज के भाव: टमाटर ₹24-28 प्रति किलो। प्याज ₹20-24। आलू ₹16-20। गेहूं MSP ₹2275 प्रति क्विंटल। कपास ₹6620। लाइव भाव के लिए AI Forecast देखें।',
+      mr: 'आजचे भाव: टोमॅटो ₹24-28 किलो। कांदा ₹20-24। बटाटा ₹16-20। गहू MSP ₹2275 क्विंटल। AI Forecast मध्ये लाइव भाव पहा।',
+      pa: 'ਅੱਜ ਦੇ ਭਾਅ: ਟਮਾਟਰ ₹24-28 ਕਿੱਲੋ। ਪਿਆਜ਼ ₹20-24। ਆਲੂ ₹16-20। ਕਣਕ MSP ₹2275 ਕੁਇੰਟਲ। AI Forecast ਵਿੱਚ ਜਾਓ।',
+      ml: 'ഇന്നത്തെ വില: തക്കാളി ₹24-28/കിലോ. ഉള്ളി ₹20-24. ഉരുളക്കിഴങ്ങ് ₹16-20. ഗോതമ്പ് MSP ₹2275. AI Forecast തുറക്കൂ.',
+      ta: 'இன்றைய விலை: தக்காளி ₹24-28/கிலோ. வெங்காயம் ₹20-24. உருளை ₹16-20. கோதுமை MSP ₹2275. AI Forecast பாருங்கள்.',
+      te: 'నేటి ధరలు: టమాటో ₹24-28/కిలో. ఉల్లి ₹20-24. బంగాళాదుంప ₹16-20. గోధుమ MSP ₹2275. AI Forecast తెరవండి.',
+      kn: 'ಇಂದಿನ ಬೆಲೆ: ಟೊಮ್ಯಾಟೋ ₹24-28/ಕಿಲೋ. ಈರುಳ್ಳಿ ₹20-24. ಆಲೂ ₹16-20. ಗೋಧಿ MSP ₹2275. AI Forecast ತೆರೆಯಿರಿ.',
+      gu: 'આજના ભાવ: ટામેટા ₹24-28/કિલો. ડુંગળી ₹20-24. બટેટા ₹16-20. ઘઉં MSP ₹2275. AI Forecast ખોલો.',
+      bn: 'আজকের দাম: টমেটো ₹24-28/কিলো. পেঁয়াজ ₹20-24. আলু ₹16-20. গম MSP ₹2275. AI Forecast দেখুন।',
+      ur: 'آج کی قیمتیں: ٹماٹر ₹24-28/کلو۔ پیاز ₹20-24۔ آلو ₹16-20۔ گندم MSP ₹2275۔ AI Forecast دیکھیں۔',
+      or: 'ଆଜିର ମୂଲ୍ୟ: ଟମାଟୋ ₹24-28/କିଲୋ. ପିଆଜ ₹20-24. ଆଳୁ ₹16-20. ଗହମ MSP ₹2275.',
+      as: 'আজিৰ দাম: টমেটো ₹24-28/কিলো. পিঁয়াজ ₹20-24. আলু ₹16-20.',
+      ne: 'आजको भाउ: गोलभेडा ₹24-28/किलो. प्याज ₹20-24. आलु ₹16-20. गहुँ MSP ₹2275.',
     },
-    hi: {
-      price: `आज टमाटर का भाव ₹24-28 प्रति किलो है। प्याज ₹20-24 प्रति किलो। गेहूं का MSP ₹2,275 प्रति क्विंटल है। लाइव भाव के लिए AI Forecast देखें।`,
-      disease: `मैं फसल रोग पहचान सकता हूँ। कृपया Crop Doctor में जाएं और प्रभावित पत्ती की फोटो लें। मैं रोग और इलाज बताऊंगा।`,
-      scheme: `आप PM-KISAN (₹6,000/वर्ष), PMFBY फसल बीमा, और 4% ब्याज पर किसान क्रेडिट कार्ड के हकदार हो सकते हैं। सरकारी योजनाएं में जाकर जांचें।`,
-      weather: `इस हफ्ते महाराष्ट्र और UP में भारी बारिश की संभावना है — खाद का छिड़काव रोकें।`,
-      loan: `सबसे सस्ता ऋण: World Bank IFAD 1.25%/वर्ष, KCC 4%/वर्ष। International Loans section देखें।`,
-      default: `आपने कहा: "${transcript}". मैं मदद कर सकता हूँ: फसल भाव, रोग पहचान, सरकारी योजनाएं, ऋण, पास की मंडियां। क्या जानना है?`,
+    disease: {
+      en: 'I can diagnose crop disease from a photo. Open Crop Doctor, take a clear photo of the sick leaf or stem, and I will tell you the disease name, cause, treatment, and how many days until spoilage — in your language with voice.',
+      hi: 'मैं फोटो से फसल का रोग पहचान सकता हूँ। Crop Doctor खोलें, बीमार पत्ती की साफ फोटो लें। मैं रोग, कारण, इलाज और कितने दिन बचे हैं — हिंदी में बोलकर बताऊंगा।',
+      mr: 'मी फोटोवरून पीक रोग ओळखतो. Crop Doctor उघडा, आजारी पानाचा फोटो काढा. रोग, कारण, उपाय मराठीत सांगेन.',
+      pa: 'ਮੈਂ ਫੋਟੋ ਤੋਂ ਫਸਲ ਦਾ ਰੋਗ ਪਛਾਣਦਾ ਹਾਂ। Crop Doctor ਖੋਲ੍ਹੋ, ਬਿਮਾਰ ਪੱਤੇ ਦੀ ਫੋਟੋ ਲਓ। ਰੋਗ, ਕਾਰਨ, ਇਲਾਜ ਪੰਜਾਬੀ ਵਿੱਚ ਦੱਸਾਂਗਾ।',
+      ml: 'ഫോട്ടോ വഴി ഞാൻ വിള രോഗം കണ്ടെത്തും. Crop Doctor തുറക്കൂ, രോഗബാധിത ഇലയുടെ ഫോട്ടോ എടുക്കൂ. രോഗം, കാരണം, ചികിത്സ മലയാളത്തിൽ പറയും.',
+      ta: 'புகைப்படத்திலிருந்து நோயை கண்டறிவேன். Crop Doctor திறக்கவும், நோயுற்ற இலையின் புகைப்படம் எடுக்கவும். நோய், காரணம், சிகிச்சை தமிழில் சொல்வேன்.',
+      te: 'ఫోటో ద్వారా పంట వ్యాధి గుర్తిస్తాను. Crop Doctor తెరవండి, జబ్బుపడిన ఆకు ఫోటో తీయండి. వ్యాధి, కారణం, చికిత్స తెలుగులో చెబుతాను.',
+      kn: 'ಫೋಟೋ ಮೂಲಕ ಬೆಳೆ ರೋಗ ಗುರುತಿಸುತ್ತೇನೆ. Crop Doctor ತೆರೆಯಿರಿ. ರೋಗ, ಕಾರಣ, ಚಿಕಿತ್ಸೆ ಕನ್ನಡದಲ್ಲಿ ಹೇಳುತ್ತೇನೆ.',
+      gu: 'ફોટોથી પાક રોગ ઓળખું. Crop Doctor ખોલો, બીમાર પાંદડાનો ફોટો લો. રોગ, કારણ, ઉપચાર ગુજરાતીમાં.',
+      bn: 'ছবি থেকে ফসলের রোগ চিনি। Crop Doctor খুলুন, অসুস্থ পাতার ছবি তুলুন। বাংলায় বলব।',
+      ur: 'تصویر سے فصل کی بیماری پہچانتا ہوں۔ Crop Doctor کھولیں، بیمار پتے کی تصویر لیں۔',
+      or: 'ଫୋଟୋ ଦ୍ୱାରା ପାକ ରୋଗ ଚିହ୍ନଟ କରୁ। Crop Doctor ଖୋଲନ୍ତୁ।',
+      as: 'ফটোৰ পৰা শস্যৰ ৰোগ চিনাক্ত কৰো। Crop Doctor খোলক।',
     },
-    mr: {
-      price: `आज टोमॅटोचा भाव ₹24-28 प्रति किलो आहे. कांदा ₹20-24 प्रति किलो. गव्हाचा MSP ₹2,275 प्रति क्विंटल आहे.`,
-      disease: `पिकाचे रोग निदान करण्यासाठी Crop Doctor मध्ये जा आणि प्रभावित पानाचा फोटो काढा.`,
-      scheme: `तुम्ही PM-KISAN (₹6,000/वर्ष), PMFBY पीक विमा आणि 4% व्याजावर KCC साठी पात्र असू शकता.`,
-      weather: `या आठवड्यात महाराष्ट्रात जड पाऊस अपेक्षित — खताचा वापर थांबवा.`,
-      loan: `सर्वात स्वस्त कर्ज: World Bank IFAD 1.25%/वर्ष, KCC 4%/वर्ष.`,
-      default: `तुम्ही म्हणालात: "${transcript}". मी मदत करू शकतो: पीक भाव, रोग निदान, सरकारी योजना, कर्ज, जवळच्या मंड्या.`,
+    scheme: {
+      en: 'Key government schemes for you: PM-KISAN gives ₹6000 per year to your bank account. PMFBY crop insurance at only 1.5% premium. Kisan Credit Card at 4% interest. Over ₹14000 crore is unclaimed. Open Government Schemes to check your eligibility.',
+      hi: 'मुख्य सरकारी योजनाएं: PM-KISAN से ₹6000/वर्ष सीधे बैंक में। PMFBY फसल बीमा सिर्फ 1.5% प्रीमियम। किसान क्रेडिट कार्ड 4% ब्याज। ₹14000 करोड़ अनक्लेम्ड है। सरकारी योजनाएं खोलें।',
+      mr: 'PM-KISAN: ₹6000/वर्ष थेट बँकेत. PMFBY: 1.5% प्रीमियम. KCC: 4% व्याज. ₹14000 कोटी अनक्लेम्ड. सरकारी योजना उघडा.',
+      pa: 'PM-KISAN: ₹6000/ਸਾਲ ਸਿੱਧਾ ਬੈਂਕ ਵਿੱਚ. PMFBY: 1.5% ਪ੍ਰੀਮੀਅਮ. KCC: 4% ਵਿਆਜ. ₹14000 ਕਰੋੜ ਅਨਕਲੇਮਡ. ਸਰਕਾਰੀ ਯੋਜਨਾਵਾਂ ਖੋਲ੍ਹੋ.',
+      ml: 'PM-KISAN: ₹6000/വർഷം ബാങ്കിൽ. PMFBY: 1.5% പ്രീമിയം. KCC: 4% പലിശ. ₹14000 കോടി ക്ലെയിം ചെയ്യാത്തത്. സർക്കാർ പദ്ധതി തുറക്കൂ.',
+      ta: 'PM-KISAN: ₹6000/ஆண்டு வங்கியில். PMFBY: 1.5% பிரீமியம். KCC: 4% வட்டி. ₹14000 கோடி கோரப்படாதது. அரசு திட்டங்கள் திறக்கவும்.',
+      te: 'PM-KISAN: ₹6000/సంవత్సరం బ్యాంకుకు. PMFBY: 1.5% ప్రీమియం. KCC: 4% వడ్డీ. ₹14000 కోటి క్లెయిమ్ చేయలేదు. ప్రభుత్వ పథకాలు తెరవండి.',
+      kn: 'PM-KISAN: ₹6000/ವರ್ಷ ಬ್ಯಾಂಕಿಗೆ. PMFBY: 1.5% ಪ್ರೀಮಿಯಂ. KCC: 4% ಬಡ್ಡಿ. ₹14000 ಕೋಟಿ ಕ್ಲೇಮ್ ಆಗಿಲ್ಲ. ಸರ್ಕಾರಿ ಯೋಜನೆ ತೆರೆಯಿರಿ.',
+      gu: 'PM-KISAN: ₹6000/વર્ષ. PMFBY: 1.5% પ્રીમિયમ. KCC: 4% વ્યાજ. ₹14000 કરોડ અનક્લેઇમ. સરકારી યોજના ખોલો.',
+      bn: 'PM-KISAN: ₹6000/বছর। PMFBY: 1.5% প্রিমিয়াম। KCC: 4% সুদ। ₹14000 কোটি দাবিহীন। সরকারি প্রকল্প খুলুন।',
+      ur: 'PM-KISAN: ₹6000/سال۔ PMFBY: 1.5% پریمیم۔ KCC: 4% سود۔ ₹14000 کروڑ غیر دعویٰ۔ سرکاری منصوبے کھولیں۔',
+      or: 'PM-KISAN: ₹6000/ବର୍ଷ. PMFBY: 1.5% ପ୍ରିମିୟମ. KCC: 4% ସୁଧ. ₹14000 କୋଟି ଅଦାବି.',
+      as: 'PM-KISAN: ₹6000/বছৰ. PMFBY: 1.5% প্ৰিমিয়াম. KCC: 4% সুদ.',
     },
-    pa: {
-      price: `ਅੱਜ ਟਮਾਟਰ ਦਾ ਭਾਅ ₹24-28 ਪ੍ਰਤੀ ਕਿੱਲੋ ਹੈ। ਪਿਆਜ਼ ₹20-24 ਪ੍ਰਤੀ ਕਿੱਲੋ। ਕਣਕ ਦਾ MSP ₹2,275 ਪ੍ਰਤੀ ਕੁਇੰਟਲ।`,
-      disease: `ਫਸਲ ਦਾ ਰੋਗ ਪਛਾਣਨ ਲਈ Crop Doctor ਵਿੱਚ ਜਾਓ ਅਤੇ ਪ੍ਰਭਾਵਿਤ ਪੱਤੇ ਦੀ ਫੋਟੋ ਲਓ।`,
-      scheme: `ਤੁਸੀਂ PM-KISAN (₹6,000/ਸਾਲ), PMFBY ਫਸਲ ਬੀਮਾ ਅਤੇ 4% ਵਿਆਜ ਤੇ KCC ਦੇ ਹੱਕਦਾਰ ਹੋ ਸਕਦੇ ਹੋ।`,
-      weather: `ਇਸ ਹਫਤੇ ਪੰਜਾਬ ਵਿੱਚ ਭਾਰੀ ਮੀਂਹ ਦੀ ਸੰਭਾਵਨਾ — ਖਾਦ ਪਾਉਣੀ ਬੰਦ ਕਰੋ।`,
-      loan: `ਸਭ ਤੋਂ ਸਸਤਾ ਕਰਜ਼ਾ: World Bank IFAD 1.25%/ਸਾਲ, KCC 4%/ਸਾਲ।`,
-      default: `ਤੁਸੀਂ ਕਿਹਾ: "${transcript}". ਮੈਂ ਮਦਦ ਕਰ ਸਕਦਾ ਹਾਂ: ਫਸਲ ਭਾਅ, ਰੋਗ, ਯੋਜਨਾਵਾਂ, ਕਰਜ਼ੇ, ਮੰਡੀਆਂ।`,
+    loan: {
+      en: 'Cheapest loans for farmers: World Bank IFAD at 1.25% per year, GIZ Germany at 2%, Kisan Credit Card at 4%. Moneylenders charge 40-60%. Open International Loans for step by step application.',
+      hi: 'सबसे सस्ते ऋण: World Bank IFAD 1.25%/वर्ष, GIZ जर्मनी 2%, किसान क्रेडिट कार्ड 4%। साहूकार 40-60% लेते हैं। International Loans खोलें।',
+      mr: 'सर्वात स्वस्त कर्ज: IFAD 1.25%/वर्ष, GIZ जर्मनी 2%, KCC 4%. सावकार 40-60% घेतात. International Loans उघडा.',
+      pa: 'ਸਭ ਤੋਂ ਸਸਤੇ ਕਰਜ਼ੇ: IFAD 1.25%/ਸਾਲ, GIZ ਜਰਮਨੀ 2%, KCC 4%. ਸ਼ਾਹੂਕਾਰ 40-60% ਲੈਂਦੇ ਹਨ. International Loans ਖੋਲ੍ਹੋ.',
+      ml: 'ഏറ്റവും വിലകുറഞ്ഞ വായ്പ: IFAD 1.25%/വർഷം, GIZ 2%, KCC 4%. International Loans തുറക്കൂ.',
+      ta: 'மிக குறைந்த கடன்: IFAD 1.25%/ஆண்டு, GIZ 2%, KCC 4%. International Loans திறக்கவும்.',
+      te: 'అత్యంత చౌకైన రుణాలు: IFAD 1.25%/సంవత్సరం, GIZ 2%, KCC 4%. International Loans తెరవండి.',
+      kn: 'ಅಗ್ಗದ ಸಾಲ: IFAD 1.25%/ವರ್ಷ, GIZ 2%, KCC 4%. International Loans ತೆರೆಯಿರಿ.',
+      gu: 'સસ્તી લોન: IFAD 1.25%/વર્ષ, GIZ 2%, KCC 4%. International Loans ખોલો.',
+      bn: 'সস্তা ঋণ: IFAD 1.25%/বছর, GIZ 2%, KCC 4%. International Loans খুলুন।',
+      ur: 'سستا قرض: IFAD 1.25%/سال، GIZ 2%، KCC 4%۔ International Loans کھولیں۔',
+      or: 'ଶସ୍ତା ଋଣ: IFAD 1.25%/ବର୍ଷ, GIZ 2%, KCC 4%.',
+      as: 'সস্তা ঋণ: IFAD 1.25%/বছৰ, GIZ 2%, KCC 4%.',
     },
-    ml: {
-      price: `ഇന്ന് തക്കാളി ₹24-28/കിലോ. ഉള്ളി ₹20-24/കിലോ. ഗോതമ്പ് MSP ₹2,275/ക്വിന്റൽ.`,
-      disease: `വിള രോഗം കണ്ടെത്താൻ Crop Doctor ൽ പോയി ബാധിത ഇലയുടെ ഫോട്ടോ എടുക്കൂ.`,
-      scheme: `PM-KISAN (₹6,000/വർഷം), PMFBY വിള ഇൻഷുറൻസ്, 4% പലിശയിൽ KCC ലഭ്യം.`,
-      weather: `ഈ ആഴ്ച കേരളത്തിൽ കനത്ത മഴ — വളമിടൽ നിർത്തൂ.`,
-      loan: `ഏറ്റവും വിലകുറഞ്ഞ വായ്പ: World Bank IFAD 1.25%/വർഷം, KCC 4%/വർഷം.`,
-      default: `നിങ്ങൾ പറഞ്ഞു: "${transcript}". ഞാൻ സഹായിക്കാം: വില, രോഗം, പദ്ധതി, വായ്പ, മണ്ടി.`,
+    weather: {
+      en: 'Weather alert this week: Heavy rain expected in Maharashtra, Punjab and West Bengal. Postpone fertilizer application for 48 hours to avoid wastage. If hail warning in your district, cover vegetables with nets immediately.',
+      hi: 'मौसम अलर्ट: महाराष्ट्र, पंजाब और पश्चिम बंगाल में भारी बारिश। 48 घंटे खाद न डालें। ओले की चेतावनी हो तो सब्जियां ढकें।',
+      mr: 'हवामान सूचना: महाराष्ट्र, पंजाब, पश्चिम बंगालमध्ये जड पाऊस. 48 तास खत टाकू नका. गारपीट असल्यास भाज्या झाका.',
+      pa: 'ਮੌਸਮ ਚੇਤਾਵਨੀ: ਮਹਾਰਾਸ਼ਟਰ, ਪੰਜਾਬ, ਪੱਛਮੀ ਬੰਗਾਲ ਵਿੱਚ ਭਾਰੀ ਮੀਂਹ. 48 ਘੰਟੇ ਖਾਦ ਨਾ ਪਾਓ.',
+      ml: 'കാലാവസ്ഥ: മഹാരാഷ്ട്ര, പഞ്ചാബ്, ബംഗാളിൽ കനത്ത മഴ. 48 മണിക്കൂർ വളം ഇടരുത്.',
+      ta: 'வானிலை: மகாராஷ்டிரா, பஞ்சாப், மேற்கு வங்காளத்தில் கனமழை. 48 மணி நேரம் உரம் போடாதீர்கள்.',
+      te: 'వాతావరణం: మహారాష్ట్ర, పంజాబ్, పశ్చిమ బెంగాల్‌లో భారీ వర్షం. 48 గంటలు ఎరువు వేయకండి.',
+      kn: 'ಹವಾಮಾನ: ಮಹಾರಾಷ್ಟ್ರ, ಪಂಜಾಬ್, ಪಶ್ಚಿಮ ಬಂಗಾಳದಲ್ಲಿ ಭಾರಿ ಮಳೆ. 48 ಗಂಟೆ ಗೊಬ್ಬರ ಹಾಕಬೇಡಿ.',
+      gu: 'હવામાન: મહારાષ્ટ્ર, પંજાબ, પ. બંગાળ ભારે વરસાદ. 48 કલાક ખાતર ન નાખો.',
+      bn: 'আবহাওয়া: মহারাষ্ট্র, পাঞ্জাব, পশ্চিমবঙ্গে ভারী বৃষ্টি. ৪৮ ঘণ্টা সার দেবেন না.',
+      ur: 'موسم: مہاراشٹر، پنجاب، مغربی بنگال میں بھاری بارش. ۴۸ گھنٹے کھاد نہ ڈالیں.',
+      or: 'ଆବହାୱା: ମହାରାଷ୍ଟ୍ର, ପଞ୍ଜାବ, ପ. ବଙ୍ଗ ଭାରୀ ବର୍ଷା.',
+      as: 'বতৰ: মহাৰাষ্ট্ৰ, পঞ্জাব, পশ্চিমবংগত ভাৰী বৰষুণ.',
     },
-    ta: {
-      price: `இன்று தக்காளி ₹24-28/கிலோ. வெங்காயம் ₹20-24/கிலோ. கோதுமை MSP ₹2,275/குவிண்டால்.`,
-      disease: `பயிர் நோய் கண்டறிய Crop Doctor ல் சென்று பாதிக்கப்பட்ட இலையின் புகைப்படம் எடுங்கள்.`,
-      scheme: `PM-KISAN (₹6,000/ஆண்டு), PMFBY பயிர் காப்பீடு, 4% வட்டியில் KCC கிடைக்கும்.`,
-      weather: `இந்த வாரம் தமிழ்நாட்டில் கனமழை — உரம் தெளிப்பதை நிறுத்துங்கள்.`,
-      loan: `மலிவான கடன்: World Bank IFAD 1.25%/ஆண்டு, KCC 4%/ஆண்டு.`,
-      default: `நீங்கள் சொன்னீர்கள்: "${transcript}". விலை, நோய், திட்டம், கடன், மண்டி - உதவ முடியும்.`,
+    mandi: {
+      en: 'KrishiChain has 55 mandis mapped across all Indian states. Open Market Map to find mandis near you. Filter by state, crop or district. Azadpur Delhi is Asia largest. Koyambedu Chennai, Bowenpally Hyderabad, APMC Nagpur are also available.',
+      hi: 'KrishiChain में पूरे भारत की 55 मंडियां हैं। Market Map खोलें। राज्य, फसल या जिले से फिल्टर करें। आजादपुर दिल्ली — एशिया की सबसे बड़ी मंडी।',
+      mr: 'KrishiChain मध्ये संपूर्ण भारतातील 55 मंड्या आहेत. Market Map उघडा. राज्य, पीक किंवा जिल्ह्यानुसार फिल्टर करा.',
+      pa: 'KrishiChain ਵਿੱਚ ਪੂਰੇ ਭਾਰਤ ਦੀਆਂ 55 ਮੰਡੀਆਂ ਹਨ. Market Map ਖੋਲ੍ਹੋ. ਰਾਜ, ਫਸਲ ਜਾਂ ਜ਼ਿਲੇ ਨਾਲ ਫਿਲਟਰ ਕਰੋ.',
+      ml: 'KrishiChain-ൽ 55 മണ്ടി ഉണ്ട്. Market Map തുറക്കൂ. സംസ്ഥാനം, വിള, ജില്ല ഫിൽറ്റർ.',
+      ta: 'KrishiChain-ல் 55 மண்டிகள் உள்ளன. Market Map திறக்கவும். மாநிலம், பயிர், மாவட்டம் வடிகட்டவும்.',
+      te: 'KrishiChain-లో 55 మండులు ఉన్నాయి. Market Map తెరవండి. రాష్ట్రం, పంట, జిల్లా ఫిల్టర్.',
+      kn: 'KrishiChain-ನಲ್ಲಿ 55 ಮಂಡಿ ಇದೆ. Market Map ತೆರೆಯಿರಿ.',
+      gu: 'KrishiChain-માં 55 મંડી. Market Map ખોલો.',
+      bn: 'KrishiChain-এ 55টি মান্ডি। Market Map খুলুন।',
+      ur: 'KrishiChain میں 55 مندیاں۔ Market Map کھولیں۔',
+      or: 'KrishiChain ରେ 55 ମଣ୍ଡି। Market Map ଖୋଲନ୍ତୁ।',
+      as: 'KrishiChain-ত 55 মান্ডি। Market Map খোলক।',
     },
-    te: {
-      price: `నేడు టమాటో ₹24-28/కిలో. ఉల్లి ₹20-24/కిలో. గోధుమ MSP ₹2,275/క్వింటాల్.`,
-      disease: `పంట వ్యాధి గుర్తించడానికి Crop Doctor కి వెళ్ళి ప్రభావిత ఆకు ఫోటో తీయండి.`,
-      scheme: `PM-KISAN (₹6,000/సంవత్సరం), PMFBY పంట బీమా, 4% వడ్డీకి KCC అందుబాటులో ఉంది.`,
-      weather: `ఈ వారం ఆంధ్రప్రదేశ్‌లో భారీ వర్షం — ఎరువు వేయడం ఆపండి.`,
-      loan: `చౌకైన రుణం: World Bank IFAD 1.25%/సంవత్సరం, KCC 4%/సంవత్సరం.`,
-      default: `మీరు చెప్పారు: "${transcript}". ధరలు, వ్యాధి, పథకాలు, రుణాలు, మండులు - సహాయం చేయగలను.`,
+    cheat: {
+      en: 'To check if the agent is cheating you, open Smart Tools and use the Cheat Detector. Enter the rate the agent told you. If the difference from actual mandi rate is more than 8 percent, you will see a red alert. Show that screen to the agent and demand the correct rate.',
+      hi: 'एजेंट धोखा दे रहा है? Smart Tools खोलें, Cheat Detector में एजेंट का भाव डालें। 8% से ज़्यादा अंतर हो तो लाल अलर्ट आएगा। वो स्क्रीन एजेंट को दिखाएं।',
+      mr: 'एजंट फसवत आहे? Smart Tools उघडा, Cheat Detector मध्ये एजंटचा भाव टाका. 8% पेक्षा जास्त फरक असल्यास लाल अलर्ट. ती स्क्रीन एजंटला दाखवा.',
+      pa: 'ਏਜੰਟ ਧੋਖਾ ਦੇ ਰਿਹਾ ਹੈ? Smart Tools ਖੋਲ੍ਹੋ. ਏਜੰਟ ਦਾ ਭਾਅ ਦਰਜ ਕਰੋ. 8% ਤੋਂ ਵੱਧ ਫ਼ਰਕ ਤੇ ਲਾਲ ਅਲਰਟ ਆਵੇਗਾ.',
+      ml: 'ഏജന്റ് ചതിക്കുന്നോ? Smart Tools തുറക്കൂ. ഏജന്റ് പറഞ്ഞ നിരക്ക് നൽകൂ. 8% വ്യത്യാസം ഉണ്ടെങ്കിൽ ചുവപ്പ് അലർട്ട്.',
+      ta: 'ஏஜென்ட் ஏமாற்றுகிறாரா? Smart Tools திற, Cheat Detector-ல் ரேட் போடு. 8% வித்தியாசம் இருந்தால் சிவப்பு எச்சரிக்கை.',
+      te: 'ఏజెంట్ మోసం చేస్తున్నారా? Smart Tools తెరవండి. ఏజెంట్ రేటు నమోదు చేయండి. 8% తేడా ఉంటే ఎరుపు హెచ్చరిక.',
+      kn: 'ಏಜೆಂಟ್ ಮೋಸ ಮಾಡುತ್ತಿದ್ದಾರೆಯೇ? Smart Tools ತೆರೆಯಿರಿ. 8% ವ್ಯತ್ಯಾಸ ಇದ್ದರೆ ಕೆಂಪು ಎಚ್ಚರಿಕೆ.',
+      gu: 'એજન્ટ ઠગ કરે? Smart Tools ખોલો. 8% ફ઼erse rie.',
+      bn: 'এজেন্ট ঠকাচ্ছে? Smart Tools খুলুন. 8% বেশি পার্থক্যে লাল অ্যালার্ট।',
+      ur: 'ایجنٹ دھوکہ دے رہا ہے؟ Smart Tools کھولیں۔ 8% سے زیادہ فرق پر سرخ الرٹ۔',
+      or: 'ଏଜେଣ୍ଟ ଠକ କରୁଛି? Smart Tools ଖୋଲନ୍ତୁ.',
+      as: 'এজেন্ট প্ৰতাৰণা কৰিছে? Smart Tools খোলক.',
     },
-    kn: {
-      price: `ಇಂದು ಟೊಮ್ಯಾಟೋ ₹24-28/ಕಿಲೋ. ಈರುಳ್ಳಿ ₹20-24/ಕಿಲೋ. ಗೋಧಿ MSP ₹2,275/ಕ್ವಿಂಟಾಲ್.`,
-      disease: `ಬೆಳೆ ರೋಗ ಪತ್ತೆಹಚ್ಚಲು Crop Doctor ಗೆ ಹೋಗಿ ಪೀಡಿತ ಎಲೆಯ ಫೋಟೋ ತೆಗೆಯಿರಿ.`,
-      scheme: `PM-KISAN (₹6,000/ವರ್ಷ), PMFBY ಬೆಳೆ ವಿಮೆ, 4% ಬಡ್ಡಿಯಲ್ಲಿ KCC ಲಭ್ಯ.`,
-      weather: `ಈ ವಾರ ಕರ್ನಾಟಕದಲ್ಲಿ ಭಾರೀ ಮಳೆ — ಗೊಬ್ಬರ ಹಾಕುವುದನ್ನು ನಿಲ್ಲಿಸಿ.`,
-      loan: `ಅಗ್ಗದ ಸಾಲ: World Bank IFAD 1.25%/ವರ್ಷ, KCC 4%/ವರ್ಷ.`,
-      default: `ನೀವು ಹೇಳಿದ್ದು: "${transcript}". ಬೆಲೆ, ರೋಗ, ಯೋಜನೆ, ಸಾಲ, ಮಂಡಿ - ಸಹಾಯ ಮಾಡಬಲ್ಲೆ.`,
+    profit: {
+      en: 'Before travelling to any mandi, use the Profit Calculator in Smart Tools. It subtracts transport cost, mandi commission at 6.5 percent, and weighment deduction at 5 percent, and shows your real profit. Many farmers lose money by not calculating first.',
+      hi: 'किसी मंडी जाने से पहले Smart Tools में Profit Calculator खोलें। परिवहन, 6.5% कमीशन और 5% तौल कटौती काटकर असली लाभ बताता है।',
+      mr: 'कोणत्याही मंडीत जाण्यापूर्वी Smart Tools मधील Profit Calculator वापरा. वाहतूक, 6.5% कमिशन, 5% वजन कपात वजा करून खरा नफा दाखवतो.',
+      pa: 'ਕਿਸੇ ਮੰਡੀ ਜਾਣ ਤੋਂ ਪਹਿਲਾਂ Smart Tools ਵਿੱਚ Profit Calculator ਵਰਤੋ.',
+      ml: 'ഏതെങ്കിലും മണ്ടിയിൽ പോകുന്നതിന് മുൻപ് Smart Tools-ൽ Profit Calculator ഉപയോഗിക്കൂ.',
+      ta: 'மண்டிக்கு செல்வதற்கு முன் Smart Tools-ல் Profit Calculator பயன்படுத்துங்கள்.',
+      te: 'మండికి వెళ్ళే ముందు Smart Tools లో Profit Calculator వాడండి.',
+      kn: 'ಮಂಡಿಗೆ ಹೋಗುವ ಮೊದಲು Smart Tools ನಲ್ಲಿ Profit Calculator ಬಳಸಿ.',
+      gu: 'મંડી જતા પહેલા Smart Tools-માં Profit Calculator વાપરો.',
+      bn: 'মান্ডিতে যাওয়ার আগে Smart Tools-এ Profit Calculator ব্যবহার করুন।',
+      ur: 'منڈی جانے سے پہلے Smart Tools میں Profit Calculator استعمال کریں۔',
+      or: 'ମଣ୍ଡି ଯିବା ପୂର୍ବ Smart Tools ରେ Profit Calculator ଖୋଲନ୍ତୁ.',
+      as: 'মান্ডিলৈ যোৱাৰ আগতে Smart Tools-ত Profit Calculator খোলক.',
     },
-    gu: {
-      price: `આજે ટામેટા ₹24-28/કિલો. ડુંગળી ₹20-24/કિલો. ઘઉં MSP ₹2,275/ક્વિન્ટલ.`,
-      disease: `પાક રોગ ઓળખવા Crop Doctor માં જઈ અસરગ્રસ્ત પાંદડાનો ફોટો લો.`,
-      scheme: `PM-KISAN (₹6,000/વર્ષ), PMFBY પાક વીમો, 4% વ્યાજ પર KCC ઉપલબ્ધ.`,
-      weather: `આ સપ્તાહ ગુજરાતમાં ભારે વરસાદ — ખાતર નાખવાનું બંધ કરો.`,
-      loan: `સસ્તી લોન: World Bank IFAD 1.25%/વર્ષ, KCC 4%/વર્ષ.`,
-      default: `તમે કહ્યું: "${transcript}". ભાવ, રોગ, યોજના, લોન, મંડી - મદદ કરી શકું.`,
-    },
-    bn: {
-      price: `আজ টমেটো ₹24-28/কিলো। পেঁয়াজ ₹20-24/কিলো। গম MSP ₹2,275/কুইন্টাল।`,
-      disease: `ফসলের রোগ শনাক্ত করতে Crop Doctor এ যান এবং আক্রান্ত পাতার ছবি তুলুন।`,
-      scheme: `PM-KISAN (₹6,000/বছর), PMFBY ফসল বীমা, 4% সুদে KCC পাওয়া যায়।`,
-      weather: `এই সপ্তাহে পশ্চিমবঙ্গে ভারী বৃষ্টি — সার দেওয়া বন্ধ করুন।`,
-      loan: `সবচেয়ে সস্তা ঋণ: World Bank IFAD 1.25%/বছর, KCC 4%/বছর।`,
-      default: `আপনি বললেন: "${transcript}"। দাম, রোগ, প্রকল্প, ঋণ, মান্ডি - সাহায্য করতে পারি।`,
-    },
-    or: {
-      price: `ଆଜି ଟମାଟୋ ₹24-28/କିଲୋ। ପିଆଜ ₹20-24/କିଲୋ। ଗହମ MSP ₹2,275/କ୍ୱିଣ୍ଟାଲ।`,
-      disease: `ଫସଲ ରୋଗ ଚିହ୍ନଟ ପାଇଁ Crop Doctor ରେ ଯାଆନ୍ତୁ ଓ ଆକ୍ରାନ୍ତ ପତ୍ରର ଫୋଟୋ ତୋଳନ୍ତୁ।`,
-      scheme: `PM-KISAN (₹6,000/ବର୍ଷ), PMFBY ଫସଲ ବୀମା, 4% ସୁଧ ଉପରେ KCC ଉପଲବ୍ଧ।`,
-      weather: `ଏହି ସପ୍ତାହ ଓଡ଼ିଶାରେ ଭାରୀ ବର୍ଷା — ସାର ପ୍ରୟୋଗ ବନ୍ଦ କରନ୍ତୁ।`,
-      loan: `ସବୁଠୁ ଶସ୍ତା ଋଣ: World Bank IFAD 1.25%/ବର୍ଷ, KCC 4%/ବର୍ଷ।`,
-      default: `ଆପଣ କହିଲେ: "${transcript}"। ମୂଲ୍ୟ, ରୋଗ, ଯୋଜନା, ଋଣ, ମଣ୍ଡି — ସାହାଯ୍ୟ କରିପାରିବି।`,
+    help: {
+      en: 'I can help you with crop prices, disease diagnosis, government schemes, cheap loans, weather alerts, nearby mandis, and profit calculation. Just say what you want to know.',
+      hi: 'मैं इनमें मदद कर सकता हूँ: फसल भाव, रोग पहचान, सरकारी योजनाएं, सस्ते ऋण, मौसम, पास की मंडी, लाभ गणना। बस बोलें क्या जानना है।',
+      mr: 'मी मदत करतो: पीक भाव, रोग, सरकारी योजना, स्वस्त कर्ज, हवामान, जवळची मंडी, नफा. काय सांगू?',
+      pa: 'ਮੈਂ ਮਦਦ ਕਰਦਾ ਹਾਂ: ਫਸਲ ਭਾਅ, ਰੋਗ, ਸਰਕਾਰੀ ਯੋਜਨਾ, ਸਸਤਾ ਕਰਜ਼ਾ, ਮੌਸਮ, ਮੰਡੀ, ਮੁਨਾਫਾ.',
+      ml: 'ഞാൻ സഹായിക്കും: വിള വില, രോഗം, സർക്കാർ പദ്ധതി, വായ്പ, കാലാവസ്ഥ, മണ്ടി, ലാഭം.',
+      ta: 'நான் உதவுவேன்: பயிர் விலை, நோய், அரசு திட்டம், கடன், வானிலை, மண்டி, லாபம்.',
+      te: 'నేను సహాయపడతాను: పంట ధర, వ్యాధి, పథకాలు, రుణాలు, వాతావరణం, మండి, లాభం.',
+      kn: 'ನಾನು ಸಹಾಯ ಮಾಡುತ್ತೇನೆ: ಬೆಳೆ ಬೆಲೆ, ರೋಗ, ಯೋಜನೆ, ಸಾಲ, ಹವಾಮಾನ, ಮಂಡಿ, ಲಾಭ.',
+      gu: 'હું મદદ કરીશ: ભાવ, રોગ, યોજના, લોન, હવામાન, મંડી, નફો.',
+      bn: 'আমি সাহায্য করব: দাম, রোগ, প্রকল্প, ঋণ, আবহাওয়া, মান্ডি, লাভ.',
+      ur: 'میں مدد کروں گا: قیمت، بیماری، منصوبہ، قرض، موسم، منڈی، منافع.',
+      or: 'ମୁଁ ସାହାଯ୍ୟ କରିବି: ମୂଲ୍ୟ, ରୋଗ, ଯୋଜନା, ଋଣ, ଆବହାୱା, ମଣ୍ଡି, ଲାଭ.',
+      as: 'মই সহায় কৰিম: দাম, ৰোগ, আঁচনি, ঋণ, বতৰ, মান্ডি, লাভ.',
     },
   }
 
-  const langResponses = responses[langCode] || responses.en
-  let key = 'default'
-  if (text.includes('price') || text.includes('rate') || text.includes('भाव') || text.includes('ভাও') || text.includes('ధర') || text.includes('விலை') || text.includes('ಬೆಲೆ') || text.includes('വില') || text.includes('bhav') || text.includes('daam') || text.includes('ਭਾਅ')) key = 'price'
-  else if (text.includes('disease') || text.includes('रोग') || text.includes('rog') || text.includes('sick') || text.includes('yellow') || text.includes('spot') || text.includes('ರೋಗ') || text.includes('వ్యాధి') || text.includes('நோய்')) key = 'disease'
-  else if (text.includes('scheme') || text.includes('yojana') || text.includes('योजना') || text.includes('government') || text.includes('kisan') || text.includes('pmkisan') || text.includes('ಯೋಜನೆ') || text.includes('திட்டம்') || text.includes('পদ্ধতি')) key = 'scheme'
-  else if (text.includes('rain') || text.includes('weather') || text.includes('flood') || text.includes('baarish') || text.includes('बारिश') || text.includes('मौसम') || text.includes('ਮੌਸਮ') || text.includes('ਬਾਰਿਸ਼')) key = 'weather'
-  else if (text.includes('loan') || text.includes('karz') || text.includes('rin') || text.includes('ऋण') || text.includes('ਕਰਜ਼ਾ') || text.includes('കടം') || text.includes('கடன்') || text.includes('credit')) key = 'loan'
+  const replies = DB[intent] || DB.help
+  const answer  = replies[lang] || replies[lang.split('-')[0]] || replies.en
 
-  return langResponses[key] || langResponses.default
+  return { text: answer, lang, intent }
 }
