@@ -119,7 +119,7 @@ KC_v3/
 │   │   └── Sidebar.jsx            ← Nav with language switcher
 │   └── pages/               ← 15 screens
 └── firebase.json             ← Deploy config
----
+```
 
 ---
 
